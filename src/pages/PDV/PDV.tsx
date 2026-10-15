@@ -23,8 +23,9 @@ import {
   Loader2,
   Printer
 } from 'lucide-react';
-import { thermalPrinter } from '../../lib/thermalPrint';
-import { cupomBytes, cupomDaVenda, CupomDados } from '../../lib/cupom';
+import { cupomDaVenda, CupomDados } from '../../lib/cupom';
+import { imprimirCupom } from '../../lib/impressao';
+import ModoImpressaoSelect from '../../components/ModoImpressaoSelect';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Produto, ItemCarrinho, Sessao, Venda, Pagamento } from './types';
 import CashOpsModal from './CashOpsModal';
@@ -347,27 +348,15 @@ export default function PDV() {
 
 
   // Handlers
-  const handlePrintUSB = async () => {
+  const handleImprimir = async () => {
     if (!printData) return;
 
     try {
-      // Na primeira vez abre o seletor do navegador; depois imprime direto.
-      await thermalPrinter.printBytes(cupomBytes(printData));
-      toast.success('Cupom enviado para a impressora.');
+      await imprimirCupom(printData);
     } catch (error: any) {
       console.error(error);
-      if (error?.name === 'NotFoundError') return; // seletor fechado sem escolher
-      toast.error(error?.message || 'Erro ao imprimir. Verifique a impressora USB.');
-    }
-  };
-
-  const handleConnectPrinter = async () => {
-    try {
-      await thermalPrinter.requestDevice();
-      toast.success('Impressora USB configurada!');
-    } catch (error: any) {
-      if (error?.name === 'NotFoundError') return;
-      toast.error(error?.message || 'Falha ao conectar impressora.');
+      if (error?.name === 'NotFoundError') return; // seletor USB fechado sem escolher
+      toast.error(error?.message || 'Erro ao imprimir o cupom.');
     }
   };
 
@@ -1244,13 +1233,7 @@ export default function PDV() {
              <p id="print-sale-description" style={{ color: 'var(--text-secondary)', marginBottom: 12, fontSize: '0.9rem' }}>
                Deseja imprimir o comprovante desta venda?
              </p>
-             <button
-                onClick={handleConnectPrinter}
-                style={{ background: 'none', border: 'none', color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.85rem', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 6, margin: '0 auto 24px' }}
-              >
-                <Printer size={14} />
-                Trocar impressora USB
-              </button>
+             <ModoImpressaoSelect style={{ justifyContent: 'center', marginBottom: 24 }} />
              <div style={{ display: 'flex', gap: 10 }}>
                <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => {
                  setShowPrintModal(false);
@@ -1258,7 +1241,7 @@ export default function PDV() {
                }}>
                  Fechar
                </button>
-               <button className="btn btn-primary" style={{ flex: 1, background: '#10b981' }} onClick={handlePrintUSB} autoFocus>
+               <button className="btn btn-primary" style={{ flex: 1, background: '#10b981' }} onClick={handleImprimir} autoFocus>
                  <Printer size={18} />
                  Imprimir
                </button>

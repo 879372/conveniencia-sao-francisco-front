@@ -11,8 +11,9 @@ import {
   ShoppingCart,
   Printer
 } from 'lucide-react';
-import { thermalPrinter } from '../../lib/thermalPrint';
-import { cupomBytes, cupomDaVenda } from '../../lib/cupom';
+import { cupomDaVenda } from '../../lib/cupom';
+import { imprimirCupom } from '../../lib/impressao';
+import ModoImpressaoSelect from '../../components/ModoImpressaoSelect';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -103,24 +104,13 @@ export default function Vendas() {
     }
   });
 
-  const handlePrintUSB = async (venda: Venda) => {
+  const handleImprimir = async (venda: Venda) => {
     try {
-      await thermalPrinter.printBytes(cupomBytes(cupomDaVenda(venda)));
-      toast.success('Cupom enviado para a impressora.');
+      await imprimirCupom(cupomDaVenda(venda));
     } catch (error: any) {
       console.error(error);
-      if (error?.name === 'NotFoundError') return; // seletor fechado sem escolher
-      toast.error(error?.message || 'Erro ao imprimir. Verifique a impressora USB.');
-    }
-  };
-
-  const handleConnectPrinter = async () => {
-    try {
-      await thermalPrinter.requestDevice();
-      toast.success('Impressora USB configurada!');
-    } catch (error: any) {
-      if (error?.name === 'NotFoundError') return;
-      toast.error(error?.message || 'Falha ao conectar impressora.');
+      if (error?.name === 'NotFoundError') return; // seletor USB fechado sem escolher
+      toast.error(error?.message || 'Erro ao imprimir o cupom.');
     }
   };
 
@@ -333,13 +323,7 @@ export default function Vendas() {
             </div>
 
             <div style={{ padding: '24px 32px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)' }}>
-               <button
-                  onClick={handleConnectPrinter}
-                  style={{ background: 'none', border: 'none', color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 4 }}
-                >
-                  <Printer size={12} />
-                  Configurar Impressora
-                </button>
+               <ModoImpressaoSelect />
 
                <div style={{ display: 'flex', gap: 12 }}>
                 {selectedVenda.status === 'FINALIZADA' && (
@@ -347,10 +331,10 @@ export default function Vendas() {
                     <button
                       className="btn btn-ghost"
                       style={{ color: 'var(--accent-green)', background: 'rgba(16, 185, 129, 0.1)' }}
-                      onClick={() => handlePrintUSB(selectedVenda)}
+                      onClick={() => handleImprimir(selectedVenda)}
                     >
                       <Printer size={16} />
-                      Reimprimir (USB)
+                      Reimprimir
                     </button>
 
                     <button
