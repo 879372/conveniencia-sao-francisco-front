@@ -157,20 +157,21 @@ export default function Produtos() {
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                        <button className="btn btn-ghost btn-icon" onClick={(event) => { event.stopPropagation(); handleEdit(p); }} title="Editar" aria-label={`Editar ${p.nome}`}>
-                          <Edit3 size={14} />
+                      <div className="product-actions">
+                        <button type="button" className="btn btn-icon product-action-btn product-action-edit" onClick={(event) => { event.stopPropagation(); handleEdit(p); }} title="Editar" aria-label={`Editar ${p.nome}`}>
+                          <Edit3 size={19} strokeWidth={2.4} aria-hidden="true" />
                         </button>
-                        <button className="btn btn-ghost btn-icon" onClick={(event) => { event.stopPropagation(); handleKardex(p); }} title="Histórico (Kardex)" aria-label={`Histórico de ${p.nome}`}>
-                          <History size={14} />
+                        <button type="button" className="btn btn-icon product-action-btn product-action-history" onClick={(event) => { event.stopPropagation(); handleKardex(p); }} title="Histórico (Kardex)" aria-label={`Histórico de ${p.nome}`}>
+                          <History size={19} strokeWidth={2.4} aria-hidden="true" />
                         </button>
                         <button
-                          className="btn btn-ghost btn-icon"
+                          type="button"
+                          className={`btn btn-icon product-action-btn product-action-toggle ${p.ativo ? 'is-active' : 'is-inactive'}`}
                           onClick={(event) => { event.stopPropagation(); handleToggle(p); }}
-                          style={{ color: p.ativo ? 'var(--accent-red)' : 'var(--accent-green)' }}
                           title={p.ativo ? 'Desativar' : 'Ativar'}
+                          aria-label={`${p.ativo ? 'Desativar' : 'Ativar'} ${p.nome}`}
                         >
-                          {p.ativo ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                          {p.ativo ? <ToggleRight size={21} strokeWidth={2.4} aria-hidden="true" /> : <ToggleLeft size={21} strokeWidth={2.4} aria-hidden="true" />}
                         </button>
                       </div>
                     </td>
