@@ -6,7 +6,7 @@ import {
   Search,
   X,
   CreditCard,
-  Smartphone,
+  QrCode,
   Banknote,
   ClipboardList,
   ArrowRight,
@@ -31,7 +31,7 @@ import ProdutoModal from '../Produtos/ProdutoModal';
 
 const FORMAS_PAGAMENTO = [
   { key: 'DINHEIRO', label: 'Dinheiro', icon: Banknote, color: 'var(--accent-green)' },
-  { key: 'PIX', label: 'Pix', icon: Smartphone, color: 'var(--accent)' },
+  { key: 'PIX', label: 'Pix', icon: QrCode, color: 'var(--accent)' },
   { key: 'CARTAO_DEBITO', label: 'Débito', icon: CreditCard, color: 'var(--accent-yellow)' },
   { key: 'CARTAO_CREDITO', label: 'Crédito', icon: CreditCard, color: 'var(--accent-yellow)' },
   { key: 'FIADO', label: 'Fiado', icon: ClipboardList, color: 'var(--accent-red)' },
@@ -63,9 +63,8 @@ export default function PDV() {
   const [showCashOp, setShowCashOp] = useState(false);
   const [cashOpType, setCashOpType] = useState<'SANGRIA' | 'SUPRIMENTO'>('SANGRIA');
   const [modalFecharCaixaOpen, setModalFecharCaixaOpen] = useState(false);
+  const [valorContado, setValorContado] = useState('');
   const [modalCancelarVendaOpen, setModalCancelarVendaOpen] = useState(false);
-  const [showWhatsappModal, setShowWhatsappModal] = useState(false);
-  const [clienteTelefone, setClienteTelefone] = useState('');
   const [desconto, setDesconto] = useState(0);
   const [tipoDesconto, setTipoDesconto] = useState<'VALOR' | 'PERCENTUAL'>('VALOR');
 
@@ -178,9 +177,11 @@ export default function PDV() {
   });
 
   const fecharCaixaMutation = useMutation({
-    mutationFn: () => api.post(`/sessoes-caixa/${sessao?.id}/fechar/`),
+    mutationFn: (valor: number) => api.post(`/sessoes-caixa/${sessao?.id}/fechar/`, { valor_contado: valor }),
     onSuccess: () => {
       toast.success('Caixa fechado com sucesso!');
+      setModalFecharCaixaOpen(false);
+      setValorContado('');
       queryClient.invalidateQueries({ queryKey: ['sessao-ativa'] });
       setCarrinho([]);
       setVenda(null);
@@ -221,43 +222,6 @@ export default function PDV() {
       });
       return item;
     },
-  });
-
-  const [showOrcamentoModal, setShowOrcamentoModal] = useState(false);
-
-  const salvarOrcamentoMutation = useMutation({
-    mutationFn: async () => {
-      const resp = await api.post(`/vendas/${venda?.id}/salvar-orcamento/`, {
-        cliente: clienteId,
-        desconto: valorDescontoReal
-      });
-      return resp.data;
-    },
-    onSuccess: (data) => {
-      toast.success('Orçamento salvo com sucesso!');
-      setShowOrcamentoModal(false);
-      setPrintData({
-        ...data,
-        carrinho: [...carrinho],
-        total,
-        desconto: valorDescontoReal,
-        dataHora: new Date().toLocaleString('pt-BR')
-      });
-      setShowPrintModal(true);
-
-      queryClient.invalidateQueries({ queryKey: ['venda-aberta'] });
-      setCarrinho([]);
-      setVenda(null);
-      setClienteId(null);
-      setBuscaCliente('Consumidor Final');
-      setShowClienteDropdown(false);
-      setDesconto(0);
-      setTipoDesconto('VALOR');
-      setTimeout(() => buscaRef.current?.focus(), 100);
-    },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.erro || 'Erro ao salvar orçamento.');
-    }
   });
 
   const finalizarVendaMutation = useMutation({
@@ -314,52 +278,6 @@ export default function PDV() {
 
 
   // Handlers
-  const handleWhatsAppReceipt = () => {
-    if (!printData) return;
-
-    // Pegar o telefone do cliente selecionado se houver
-    if (clienteId && clientes) {
-        const c = clientes.find((cli: any) => cli.id === clienteId);
-        if (c?.telefone) setClienteTelefone(c.telefone.replace(/\D/g, ''));
-    }
-
-    setShowWhatsappModal(true);
-  };
-
-  const handleSendWhatsapp = () => {
-    if (!printData) return;
-
-    // Constrói o link do comprovante online.
-    const publicUrl = (import.meta as any).env.VITE_PUBLIC_URL;
-    const apiBase = publicUrl || ((import.meta as any).env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '');
-    const idExterno = printData.id_externo;
-
-    if (!idExterno) {
-        toast.error('Não foi possível gerar o link do comprovante. Tente imprimir o cupom físico.');
-        return;
-    }
-
-    const linkComprovante = `${apiBase}/api/comprovante/${idExterno}/`;
-    const descontoMsg = printData.desconto > 0 ? `Desconto: R$ ${Number(printData.desconto).toFixed(2)}\n` : '';
-
-    const isOrcamento = printData.status === 'ORCAMENTO';
-    const titulo = isOrcamento ? '*CONVENIÊNCIA SÃO FRANCISCO - Seu Orçamento*' : '*CONVENIÊNCIA SÃO FRANCISCO - Seu Comprovante*';
-    const tipoDocs = isOrcamento ? 'seu orçamento' : 'seu comprovante de compra';
-
-    const texto = `${titulo}\n\n` +
-      `Olá! Segue o link do ${tipoDocs}:\n\n` +
-      `${linkComprovante}\n\n` +
-      descontoMsg +
-      `Obrigado pela preferência!`;
-
-    const encodedText = encodeURIComponent(texto);
-    const fone = clienteTelefone.replace(/\D/g, '');
-
-    window.open(`https://wa.me/${fone ? '55' + fone : ''}?text=${encodedText}`, '_blank');
-    setShowWhatsappModal(false);
-    setClienteTelefone('');
-  };
-
   const handlePrintUSB = async () => {
     if (!printData) return;
 
@@ -843,16 +761,8 @@ export default function PDV() {
 
                  <div style={{ display: 'flex', gap: 8 }}>
                     <button
-                       className="btn btn-ghost"
-                       style={{ flex: 1, height: 50, fontSize: '0.85rem', fontWeight: 800, background: 'var(--bg-hover)' }}
-                       onClick={() => setShowOrcamentoModal(true)}
-                       disabled={carrinho.length === 0}
-                    >
-                       SALVAR ORÇAMENTO
-                    </button>
-                    <button
                        className="btn btn-primary"
-                       style={{ flex: 1, height: 50, fontSize: '0.85rem', fontWeight: 800 }}
+                       style={{ flex: 1, height: 56, fontSize: '1rem', fontWeight: 800 }}
                        onClick={() => {
                          if (window.innerWidth < 768 && activeTab === 'search') {
                             setActiveTab('cart');
@@ -892,7 +802,7 @@ export default function PDV() {
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
           onClick={e => e.target === e.currentTarget && setShowPagamento(false)}>
 
-          <div className="card animate-in modal-panel modal-panel-md" style={{ padding: 32 }}>
+          <div className="card animate-in modal-panel modal-panel-lg pdv-payment-modal">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
                <h2 style={{ fontSize: '1.5rem', fontWeight: 900 }}>Finalização de Venda</h2>
                <button onClick={() => setShowPagamento(false)} className="btn-icon" aria-label="Fechar pagamento"><X size={24} /></button>
@@ -1109,30 +1019,34 @@ export default function PDV() {
       )}
 
       {modalFecharCaixaOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: 400 }}>
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setModalFecharCaixaOpen(false)}>
+          <div className="modal-content modal-panel-sm">
             <div className="modal-header">
-              <h2>Fechar Caixa</h2>
+              <div>
+                <h2 className="modal-title">Fechar caixa</h2>
+                <p className="modal-subtitle">Faça a conferência do dinheiro físico antes de encerrar.</p>
+              </div>
               <button className="btn-icon" onClick={() => setModalFecharCaixaOpen(false)} aria-label="Fechar modal">
                 <X size={20} />
               </button>
             </div>
-            <div className="modal-body" style={{ padding: '20px 0', fontSize: '1.05rem', color: 'var(--text-secondary)' }}>
-              Confirmar o fechamento do caixa? Esta ação não pode ser desfeita e irá registrar o fim do turno.
+            <div className="cash-closing-summary">
+              <div><span>Fundo inicial</span><strong>R$ {Number(sessao.fundo_inicial || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></div>
+              <div><span>Saldo esperado em dinheiro</span><strong>R$ {Number(sessao.saldo_final_calculado || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></div>
             </div>
-            <div className="modal-footer" style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setModalFecharCaixaOpen(false)}>
-                Voltar
-              </button>
+            <div className="form-group">
+              <label className="form-label">Valor contado no caixa (R$) *</label>
+              <input className="input input-emphasis" type="number" min="0" step="0.01" autoFocus value={valorContado} onChange={e => setValorContado(e.target.value)} placeholder="0,00" />
+              {valorContado !== '' && <p className="field-hint">Diferença: <strong className={Number(valorContado) - Number(sessao.saldo_final_calculado || 0) === 0 ? 'text-success' : 'text-danger'}>R$ {(Number(valorContado) - Number(sessao.saldo_final_calculado || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></p>}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setModalFecharCaixaOpen(false)}>Cancelar</button>
               <button
-                className="btn"
-                style={{ flex: 1, background: 'var(--accent-red)', color: 'white', fontWeight: 600 }}
-                onClick={() => {
-                  setModalFecharCaixaOpen(false);
-                  fecharCaixaMutation.mutate();
-                }}
+                className="btn btn-danger"
+                onClick={() => fecharCaixaMutation.mutate(Number(valorContado))}
+                disabled={valorContado === '' || Number(valorContado) < 0 || fecharCaixaMutation.isPending}
               >
-                Confirmar
+                {fecharCaixaMutation.isPending ? 'Fechando...' : 'Conferir e fechar'}
               </button>
             </div>
           </div>
@@ -1198,10 +1112,6 @@ export default function PDV() {
                }}>
                  Fechar
                </button>
-               <button className="btn btn-ghost" style={{ flex: 1, color: 'var(--accent-green)', borderColor: 'var(--accent-green)' }} onClick={handleWhatsAppReceipt}>
-                 <Smartphone size={18} />
-                 WhatsApp
-               </button>
                <button className="btn btn-primary" style={{ flex: 1, background: '#10b981' }} onClick={handlePrintUSB}>
                  <Printer size={18} />
                  Imprimir
@@ -1210,38 +1120,6 @@ export default function PDV() {
           </div>
         </div>
       )}
-      {showWhatsappModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
-          <div className="card animate-in" style={{ maxWidth: 550, width: '90%', padding: 40, textAlign: 'center' }}>
-            <div style={{ padding: 16, background: 'rgba(34, 197, 94, 0.1)', borderRadius: '50%', color: 'var(--accent-green)', width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                <Smartphone size={32} />
-            </div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: 8 }}>Enviar WhatsApp</h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>Informe o número do cliente (com DDD).</p>
-
-            <div className="form-group" style={{ marginBottom: 24 }}>
-                <input
-                  className="input"
-                  type="text"
-                  autoFocus
-                  value={clienteTelefone}
-                  onChange={e => setClienteTelefone(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSendWhatsapp()}
-                  style={{ textAlign: 'center', fontSize: '1.5rem', height: 60, fontWeight: 700 }}
-                  placeholder="(00) 00000-0000"
-                />
-            </div>
-
-            <div style={{ display: 'flex', gap: 12 }}>
-                <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowWhatsappModal(false)}>Cancelar</button>
-                <button className="btn btn-primary" style={{ flex: 1, background: 'var(--accent-green)' }} onClick={handleSendWhatsapp}>
-                    Enviar Agora
-                </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showEditModal && editingProduct && (
         <ProdutoModal
           produto={editingProduct}
@@ -1249,102 +1127,6 @@ export default function PDV() {
           onSuccess={handleEditSuccess}
         />
       )}
-      {showOrcamentoModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
-          onClick={e => e.target === e.currentTarget && setShowOrcamentoModal(false)}>
-
-          <div className="card animate-in" style={{ width: '100%', maxWidth: 500, padding: 32 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-               <h2 style={{ fontSize: '1.5rem', fontWeight: 900 }}>Salvar Orçamento</h2>
-               <button onClick={() => setShowOrcamentoModal(false)} className="btn-icon" aria-label="Fechar orçamento"><X size={24} /></button>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '0.9rem' }}>
-               O orçamento ficará salvo no sistema para consulta futura. O estoque não será baixado até que o orçamento seja convertido em venda.
-            </p>
-
-            <div className="form-group" style={{ marginBottom: 16, position: 'relative' }}>
-                <label className="form-label" style={{ fontSize: '0.75rem' }}>Identificar Cliente (Opcional)</label>
-                <div className="search-input-wrapper" style={{ margin: 0 }}>
-                    <Search size={16} className="search-icon" />
-                    <input
-                    className="input"
-                    style={{ height: 44, borderRadius: 10, paddingLeft: 36 }}
-                    placeholder="Pesquisar cliente..."
-                    value={buscaCliente}
-                    onChange={e => {
-                        setBuscaCliente(e.target.value);
-                        setShowClienteDropdown(true);
-                    }}
-                    onFocus={e => {
-                        if (buscaCliente === 'Consumidor Final') e.target.select();
-                        setShowClienteDropdown(true);
-                    }}
-                    />
-                    {clienteId && (
-                    <button
-                        onClick={() => {
-                            setClienteId(null);
-                            setBuscaCliente('Consumidor Final');
-                        }}
-                        style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
-                    >
-                        <X size={16} className="text-muted" />
-                    </button>
-                    )}
-                </div>
-
-                {showClienteDropdown && (
-                <div style={{
-                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                    background: 'var(--bg-card)', border: '1px solid var(--border)',
-                    borderRadius: 10, marginTop: 4, maxHeight: 200, overflowY: 'auto',
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.4)'
-                }}>
-                    <div
-                        style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: '0.85rem' }}
-                        onClick={() => {
-                        setClienteId(null);
-                        setBuscaCliente('Consumidor Final');
-                        setShowClienteDropdown(false);
-                        }}
-                    >
-                        Consumidor Final
-                    </div>
-                    {(clientes || [])
-                    .filter((c: any) => c.nome.toLowerCase().includes(buscaCliente.toLowerCase()))
-                    .map((c: any) => (
-                        <div
-                        key={c.id}
-                        style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: '0.85rem' }}
-                        onClick={() => {
-                            setClienteId(c.id);
-                            setBuscaCliente(c.nome);
-                            setShowClienteDropdown(false);
-                        }}
-                        >
-                        {c.nome}
-                        </div>
-                    ))}
-                </div>
-                )}
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-               <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowOrcamentoModal(false)}>
-                 Cancelar
-               </button>
-               <button className="btn btn-primary" style={{ flex: 1 }}
-                 onClick={() => salvarOrcamentoMutation.mutate()}
-                 disabled={salvarOrcamentoMutation.isPending}
-               >
-                  <CheckCircle2 size={18} />
-                  Salvar
-               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }

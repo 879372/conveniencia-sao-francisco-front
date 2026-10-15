@@ -5,13 +5,10 @@ import {
   Package,
   ShoppingCart,
   TrendingUp,
-  ArrowRight,
   Zap,
-  Layers,
   Eye,
   EyeOff,
-  AlertTriangle,
-  History
+  CalendarDays
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
@@ -140,8 +137,8 @@ export default function Dashboard() {
         {/* Gráfico de Vendas */}
         <div className="card" style={{ height: 400, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-            <History size={18} className="text-accent" style={{ color: 'var(--accent)' }} />
-            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Movimento nos Últimos 7 Dias</h3>
+            <CalendarDays size={18} className="text-accent" style={{ color: 'var(--accent)' }} />
+            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Movimento do Mês</h3>
           </div>
           <div style={{ flex: 1, minHeight: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -157,7 +154,7 @@ export default function Dashboard() {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
-                  tickFormatter={(val) => `R$ ${val}`}
+                  tickFormatter={(val) => `R$ ${Number(val).toLocaleString('pt-BR')}`}
                 />
                 <Tooltip
                   cursor={{ fill: 'rgba(255,255,255,0.05)' }}
@@ -170,8 +167,8 @@ export default function Dashboard() {
                   }}
                 />
                 <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                  {stats?.grafico_vendas?.map((_: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={index === 6 ? 'var(--accent)' : 'rgba(59, 130, 246, 0.4)'} />
+                  {stats?.grafico_vendas?.map((_: unknown, index: number) => (
+                    <Cell key={`cell-${index}`} fill={index === stats.grafico_vendas.length - 1 ? 'var(--accent)' : 'rgba(169, 109, 23, 0.35)'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -197,60 +194,14 @@ export default function Dashboard() {
                     <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>{p.nome}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--accent-red)' }}>Apenas {p.qtd} em estoque</div>
                   </div>
-                  <NavLink to="/produtos" className="btn btn-ghost btn-sm" style={{ padding: '4px 8px' }}>Repor</NavLink>
+                  <NavLink to="/estoque" className="btn btn-ghost btn-sm" style={{ padding: '4px 8px' }}>Repor</NavLink>
                 </div>
               ))
             )}
           </div>
-          <NavLink to="/compras" className="btn btn-ghost" style={{ marginTop: 16, width: '100%', fontSize: '0.8rem' }}>
-            Ir para Compras
-            <ArrowRight size={14} />
+          <NavLink to="/estoque" className="btn btn-ghost" style={{ marginTop: 16, width: '100%', fontSize: '0.8rem' }}>
+            Gerenciar estoque
           </NavLink>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-            <Zap size={18} className="text-accent" style={{ color: 'var(--accent)' }} />
-            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Ações Rápidas</h3>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <NavLink to="/pdv" className="btn btn-primary" style={{ padding: '14px', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <ShoppingCart size={18} />
-                <span>Abrir Novo PDV / Caixa</span>
-              </div>
-              <ArrowRight size={16} />
-            </NavLink>
-            <NavLink to="/vendas" className="btn btn-ghost" style={{ padding: '14px', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <History size={18} />
-                <span>Ver Histórico de Vendas</span>
-              </div>
-              <ArrowRight size={16} />
-            </NavLink>
-          </div>
-        </div>
-
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-            <Layers size={18} className="text-accent" style={{ color: 'var(--accent-green)' }} />
-            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Status Operacional</h3>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {[
-              { label: 'Cloud API', status: 'Online', color: 'green' },
-              { label: 'Banco de Dados', status: 'Online', color: 'green' },
-              { label: 'Controle de Estoque', status: 'Ativo', color: 'blue' },
-              { label: 'Sessão de Caixa', status: 'Aberta', color: 'green' },
-            ].map((m) => (
-              <div key={m.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{m.label}</span>
-                <span className={`badge badge-${m.color}`}>{m.status}</span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>

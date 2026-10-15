@@ -13,7 +13,8 @@ import {
   User,
   Menu,
   X,
-  History
+  History,
+  Boxes
 } from 'lucide-react';
 
 const navItems = [
@@ -21,6 +22,7 @@ const navItems = [
   { label: 'Histórico Vendas', Icon: History, to: '/vendas', section: null },
   { label: 'PDV / Caixa', Icon: ShoppingCart, to: '/pdv', section: null, external: true },
   { label: 'Produtos', Icon: Package, to: '/produtos', section: 'CADASTROS' },
+  { label: 'Estoque', Icon: Boxes, to: '/estoque', section: null },
   { label: 'Grupos / Categorias', Icon: Package, to: '/produtos/grupos', section: null },
   { label: 'Clientes', Icon: Users, to: '/clientes', section: null },
   { label: 'Compras / Entradas', Icon: FileInput, to: '/compras', section: 'OPERACIONAL' },

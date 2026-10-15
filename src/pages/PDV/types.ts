@@ -22,6 +22,10 @@ export interface Sessao {
   fundo_inicial: string;
   operador_nome: string;
   status: 'ABERTA' | 'FECHADA';
+  total_vendas: string;
+  total_sangrias: string;
+  total_suprimentos: string;
+  saldo_final_calculado: string;
 }
 
 export interface Venda {
