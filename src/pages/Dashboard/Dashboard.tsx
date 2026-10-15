@@ -140,7 +140,7 @@ export default function Dashboard() {
             <CalendarDays size={18} className="text-accent" style={{ color: 'var(--accent)' }} />
             <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Movimento do Mês</h3>
           </div>
-          <div style={{ flex: 1, minHeight: 0 }}>
+          <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats?.grafico_vendas}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
