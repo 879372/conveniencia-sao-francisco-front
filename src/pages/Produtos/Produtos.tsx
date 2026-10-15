@@ -157,11 +157,9 @@ export default function Produtos() {
                       <div className="product-actions">
                         <button type="button" className="btn product-action-btn" onClick={(event) => { event.stopPropagation(); handleEdit(p); }} title="Editar" aria-label={`Editar ${p.nome}`}>
                           <Edit3 size={23} strokeWidth={2.5} aria-hidden="true" />
-                          <span>Editar</span>
                         </button>
                         <button type="button" className="btn product-action-btn" onClick={(event) => { event.stopPropagation(); handleKardex(p); }} title="Histórico (Kardex)" aria-label={`Histórico de ${p.nome}`}>
                           <History size={23} strokeWidth={2.5} aria-hidden="true" />
-                          <span>Histórico</span>
                         </button>
                         <button
                           type="button"
@@ -171,7 +169,6 @@ export default function Produtos() {
                           aria-label={`${p.ativo ? 'Desativar' : 'Ativar'} ${p.nome}`}
                         >
                           {p.ativo ? <ToggleRight size={24} strokeWidth={2.5} aria-hidden="true" /> : <ToggleLeft size={24} strokeWidth={2.5} aria-hidden="true" />}
-                          <span>{p.ativo ? 'Desativar' : 'Ativar'}</span>
                         </button>
                       </div>
                     </td>
