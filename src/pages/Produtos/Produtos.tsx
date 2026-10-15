@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import ProdutoModal from './ProdutoModal';
 import {
@@ -13,6 +13,8 @@ import {
   History
 } from 'lucide-react';
 import KardexModal from './KardexModal';
+import InfiniteScroll from '../../components/InfiniteScroll';
+import { PaginaApi, usePaginatedList } from '../../hooks/usePaginatedList';
 
 interface Produto {
   id: string | number;
@@ -27,29 +29,20 @@ interface Produto {
   ativo: boolean;
 }
 
-interface ApiResponse {
-  count: number;
-  results: Produto[];
-}
-
 export default function Produtos() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [selectedProduto, setSelectedProduto] = useState<Produto | null>(null);
 
   const [showKardex, setShowKardex] = useState(false);
   const [kardexProduto, setKardexProduto] = useState<Produto | null>(null);
 
-  // Fetch Produtos with React Query
-  const { data, isLoading } = useQuery<ApiResponse>({
-    queryKey: ['produtos', search, page],
-    queryFn: async () => {
-      const resp = await api.get('/produtos/', { params: { search, page } });
-      return resp.data;
-    },
+  const lista = usePaginatedList<Produto>(['produtos', search], async (page) => {
+    const resp = await api.get<PaginaApi<Produto>>('/produtos/', { params: { search, page } });
+    return resp.data;
   });
+  const { items: produtos, count, isLoading, page, setPage, totalPages, isMobile } = lista;
 
   // Toggle Active Status Mutation
   const toggleMutation = useMutation({
@@ -86,7 +79,7 @@ export default function Produtos() {
         <div>
           <h1 className="page-title">Catálogo de Produtos</h1>
           <p className="page-subtitle">
-            {isLoading ? 'Carregando total...' : `${data?.count.toLocaleString('pt-BR')} itens registrados`}
+            {isLoading ? 'Carregando total...' : `${count.toLocaleString('pt-BR')} itens registrados`}
           </p>
         </div>
         <button className="btn btn-primary" onClick={handleNew}>
@@ -95,18 +88,51 @@ export default function Produtos() {
         </button>
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid var(--border)' }}>
+      <div className="card table-card list-card">
+        <div className="table-toolbar">
           <div className="search-input-wrapper" style={{ maxWidth: '400px' }}>
             <Search size={18} className="search-icon" />
             <input
+              type="search"
               className="input"
-                placeholder="Buscar por nome ou código..."
+              placeholder="Buscar por nome ou código..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
         </div>
+
+        {isMobile ? (
+          <div className="m-list">
+            {isLoading ? (
+              <div className="loading">Carregando produtos...</div>
+            ) : produtos.length === 0 ? (
+              <div className="m-empty">Nenhum produto encontrado.</div>
+            ) : produtos.map((p) => (
+              <div key={p.id} className="m-card clickable" onClick={() => handleEdit(p)}>
+                <div className="m-card-head">
+                  <div>
+                    <div className="m-card-title">{p.nome}</div>
+                    <div className="m-card-sub">Cód. {p.codigo_legado || '—'} · {p.grupo || 'Sem grupo'} · {p.unidade_medida}</div>
+                  </div>
+                  <span className={`badge ${p.ativo ? 'badge-green' : 'badge-red'}`}>{p.ativo ? 'Ativo' : 'Pausado'}</span>
+                </div>
+                <div className="m-card-value" style={{ color: 'var(--accent-green)' }}>
+                  R$ {Number(p.preco_venda).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </div>
+                <div className="m-card-actions" onClick={(event) => event.stopPropagation()}>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleEdit(p)}><Edit3 size={16} /> Editar</button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => handleKardex(p)}><History size={16} /> Histórico</button>
+                  <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={() => handleToggle(p)} aria-label={`${p.ativo ? 'Desativar' : 'Ativar'} ${p.nome}`}>
+                    {p.ativo ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                  </button>
+                </div>
+              </div>
+            ))}
+            <InfiniteScroll hasMore={!!lista.hasNextPage} loading={lista.isFetchingNextPage} onLoadMore={lista.fetchNextPage} />
+          </div>
+        ) : (
+        <>
 
         <div className="table-wrapper">
           <table className="table">
@@ -131,10 +157,10 @@ export default function Produtos() {
                     </td>
                   </tr>
                 ))
-              ) : data?.results.length === 0 ? (
+              ) : produtos.length === 0 ? (
                 <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Nenhum produto encontrado.</td></tr>
               ) : (
-                data?.results.map((p) => (
+                produtos.map((p) => (
                   <tr
                     key={p.id}
                     onClick={() => handleEdit(p)}
@@ -180,18 +206,20 @@ export default function Produtos() {
         </div>
 
         {/* Paginação */}
-        {!isLoading && data && data.count > 50 && (
+        {!isLoading && totalPages > 1 && (
           <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
             <button className="btn btn-sm btn-ghost" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
               <ChevronLeft size={16} />
               Anterior
             </button>
             <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)' }}>Página {page}</span>
-            <button className="btn btn-sm btn-ghost" onClick={() => setPage(p => p + 1)} disabled={page * 50 >= data.count}>
+            <button className="btn btn-sm btn-ghost" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
               Próxima
               <ChevronRight size={16} />
             </button>
           </div>
+        )}
+        </>
         )}
       </div>
 

@@ -12,11 +12,15 @@ import {
   Wallet,
   Clock,
   User as UserIcon,
-  AlertTriangle,
-  X,
   FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { NavLink } from 'react-router-dom';
+import ConfirmModal from '../../components/ConfirmModal';
+import FilterPanel from '../../components/FilterPanel';
+import InfiniteScroll from '../../components/InfiniteScroll';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import { useProgressiveList } from '../../hooks/useProgressiveList';
 
 interface Pagamento {
   forma: string;
@@ -99,6 +103,10 @@ export default function Relatorios() {
     });
   });
 
+  const isMobile = useIsMobile();
+  const sessoesLista = useProgressiveList(sessoes, `${start}|${end}`);
+  const dataCurta = (valor: string) => valor ? new Date(`${valor}T12:00:00`).toLocaleDateString('pt-BR') : '…';
+
   const dadosLucro = stats?.lucro_por_categoria || [];
   const lucroTotal = dadosLucro.reduce((acc: number, item: any) => acc + item.total, 0);
 
@@ -111,6 +119,7 @@ export default function Relatorios() {
         </div>
 
         <div className="reports-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-card)', padding: '8px 16px', borderRadius: 12, border: '1px solid var(--border)' }}>
+          <FilterPanel resumo={`Período: ${dataCurta(start)} – ${dataCurta(end)}`}>
           <div className="reports-date-field" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>DE:</span>
             <input
@@ -131,6 +140,7 @@ export default function Relatorios() {
               onChange={e => setEnd(e.target.value)}
             />
           </div>
+          </FilterPanel>
           <div className="tabs" style={{ display: 'flex', background: 'var(--bg-body)', padding: 4, borderRadius: 8, border: '1px solid var(--border)', marginLeft: 8 }}>
               <button className={`btn btn-sm ${tab === 'vendas' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('vendas')}>Vendas</button>
               <button className={`btn btn-sm ${tab === 'caixa' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('caixa')}>Caixa</button>
@@ -160,7 +170,7 @@ export default function Relatorios() {
             </div>
             <div className="kpi-card green">
               <div className="kpi-label">Ticket Médio</div>
-              <div className="kpi-value">R$ {Number(stats?.ticket_medio || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+              <div className="kpi-value">R$ {Number(stats?.ticket_medio || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               <div className="kpi-sub">média por venda finalizada</div>
             </div>
             <div className="kpi-card purple">
@@ -179,7 +189,7 @@ export default function Relatorios() {
 
       {tab === 'vendas' ? (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 24, marginBottom: 28 }}>
+          <div className="reports-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 24, marginBottom: 28 }}>
             {/* Gráfico Top 5 Lucro */}
             <div className="card" style={{ padding: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
@@ -236,7 +246,7 @@ export default function Relatorios() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24, marginBottom: 28 }}>
+          <div className="reports-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24, marginBottom: 28 }}>
             <div className="card" style={{ padding: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
                 <DollarSign size={20} style={{ color: 'var(--accent-green)' }} />
@@ -266,8 +276,29 @@ export default function Relatorios() {
             <div className="card" style={{ padding: '0px', overflow: 'hidden' }}>
               <div style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>Últimas Vendas</h3>
-                <button className="btn btn-sm btn-ghost">Ver Tudo <ChevronRight size={14} /></button>
+                <NavLink to="/vendas" className="btn btn-sm btn-ghost">Ver Tudo <ChevronRight size={14} /></NavLink>
               </div>
+              {isMobile ? (
+                <div className="m-list" style={{ padding: 12 }}>
+                  {vendas.length === 0 ? <div className="m-empty">Nenhuma venda no período.</div> : vendas.slice(0, 10).map((v) => (
+                    <div key={v.id} className="m-card">
+                      <div className="m-card-head">
+                        <div>
+                          <div className="m-card-title">Venda #{v.id}</div>
+                          <div className="m-card-sub">{v.created_at ? new Date(v.created_at).toLocaleString('pt-BR') : '—'}</div>
+                        </div>
+                        <div className="m-card-value" style={{ color: 'var(--accent-green)' }}>R$ {parseFloat(v.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {v.pagamentos?.map((p, idx) => <span key={`${v.id}-pm-${idx}`} className="badge badge-blue">{p.forma}</span>)}
+                      </div>
+                      <div className="m-card-actions">
+                        <button className="btn btn-ghost btn-sm" style={{ color: 'var(--accent-red)' }} onClick={() => setVendaParaCancelar(v)} disabled={cancelarVendaMutation.isPending}>Cancelar venda</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
               <div className="table-wrapper">
                 <table className="table">
                   <thead>
@@ -309,9 +340,38 @@ export default function Relatorios() {
                   </tbody>
                 </table>
               </div>
+              )}
             </div>
           </div>
         </>
+      ) : isMobile ? (
+        <div className="m-list">
+          {loadingSessoes ? <div className="loading">Carregando sessões...</div> : sessoes.length === 0 ? (
+            <div className="m-empty">Nenhuma sessão encontrada.</div>
+          ) : sessoesLista.visiveis.map((s) => (
+            <div key={s.id} className="m-card">
+              <div className="m-card-head">
+                <div>
+                  <div className="m-card-title"><UserIcon size={14} style={{ color: 'var(--accent)', verticalAlign: -2 }} /> {s.operador_nome}</div>
+                  <div className="m-card-sub">
+                    <Clock size={11} style={{ verticalAlign: -1 }} /> {new Date(s.aberta_em).toLocaleString('pt-BR')}
+                    {s.fechada_em ? ` → ${new Date(s.fechada_em).toLocaleString('pt-BR')}` : ''}
+                  </div>
+                </div>
+                <span className={`badge ${s.fechada_em ? 'badge-blue' : 'badge-green'}`}>{s.fechada_em ? 'FECHADO' : 'ABERTO'}</span>
+              </div>
+              <div className="m-card-meta">
+                <span>Vendas: <strong>R$ {parseFloat(s.total_vendas).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
+                <span style={{ color: 'var(--accent-red)' }}>Sangrias: R$ {parseFloat(s.total_sangrias).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="m-card-head" style={{ alignItems: 'center' }}>
+                <span className="m-card-sub">Saldo final (est.)</span>
+                <span className="m-card-value" style={{ color: 'var(--accent-green)' }}>R$ {parseFloat(s.saldo_final_calculado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+          ))}
+          <InfiniteScroll hasMore={sessoesLista.temMais} onLoadMore={sessoesLista.carregarMais} />
+        </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <div className="table-wrapper">
@@ -362,44 +422,16 @@ export default function Relatorios() {
         </div>
       )}
 
-      {/* Modal de Confirmação de Cancelamento */}
-      {vendaParaCancelar && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
-        }}>
-          <div className="card" style={{ padding: 32, maxWidth: 420, width: '90%', textAlign: 'center' }}>
-            <AlertTriangle size={40} style={{ color: 'var(--accent-red)', margin: '0 auto 16px' }} />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 8 }}>Cancelar Venda?</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: 24, fontSize: '0.9rem' }}>
-              Venda <strong>#{vendaParaCancelar.id}</strong> — R$ {parseFloat(vendaParaCancelar.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}<br/>
-              Esta ação não pode ser desfeita.
-            </p>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button
-                id="btn-confirmar-cancelamento"
-                className="btn btn-primary"
-                style={{ flex: 1, background: 'var(--accent-red)', borderColor: 'var(--accent-red)' }}
-                onClick={() => {
-                  cancelarVendaMutation.mutate({ id: vendaParaCancelar!.id });
-                }}
-                disabled={cancelarVendaMutation.isPending}
-              >
-                {cancelarVendaMutation.isPending ? 'Cancelando...' : 'Confirmar Cancelamento'}
-              </button>
-              <button
-                id="btn-fechar-modal-cancelamento"
-                className="btn btn-ghost"
-                style={{ flex: 1 }}
-                onClick={() => setVendaParaCancelar(null)}
-                disabled={cancelarVendaMutation.isPending}
-              >
-                <X size={14} /> Voltar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={!!vendaParaCancelar}
+        title="Cancelar Venda?"
+        description={vendaParaCancelar ? `Venda #${vendaParaCancelar.id} — R$ ${parseFloat(vendaParaCancelar.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Esta ação não pode ser desfeita.` : ''}
+        confirmLabel="Confirmar Cancelamento"
+        cancelLabel="Voltar"
+        onConfirm={() => vendaParaCancelar && cancelarVendaMutation.mutate({ id: vendaParaCancelar.id })}
+        onClose={() => setVendaParaCancelar(null)}
+        isLoading={cancelarVendaMutation.isPending}
+      />
     </div>
   );
 }

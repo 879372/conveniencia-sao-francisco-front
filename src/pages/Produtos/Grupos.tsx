@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import {
   Plus,
@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Modal from '../../components/Modal';
+import InfiniteScroll from '../../components/InfiniteScroll';
+import { PaginaApi, usePaginatedList } from '../../hooks/usePaginatedList';
 
 interface Grupo {
   id: string | number;
@@ -20,28 +22,18 @@ interface Grupo {
   descricao: string;
 }
 
-interface ApiResponse {
-  count: number;
-  results: Grupo[];
-}
-
 export default function Grupos() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [selectedGrupo, setSelectedGrupo] = useState<Grupo | null>(null);
   const [formData, setFormData] = useState({ nome: '', descricao: '' });
 
-  const { data, isLoading } = useQuery<ApiResponse>({
-    queryKey: ['grupos', search, page],
-    queryFn: async () => {
-      const resp = await api.get('/grupos/', { params: { search, page } });
-      return resp.data;
-    },
+  const lista = usePaginatedList<Grupo>(['grupos', search], async (page) => {
+    const resp = await api.get<PaginaApi<Grupo>>('/grupos/', { params: { search, page } });
+    return resp.data;
   });
-
-  const groups = data?.results || [];
+  const { items: groups, isLoading, page, setPage, totalPages, isMobile } = lista;
 
   const mutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -102,11 +94,12 @@ export default function Grupos() {
         </button>
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid var(--border)' }}>
+      <div className="card table-card list-card">
+        <div className="table-toolbar">
           <div className="search-input-wrapper" style={{ maxWidth: '400px' }}>
             <Search size={18} className="search-icon" />
             <input
+              type="search"
               className="input"
               placeholder="Buscar por nome..."
               value={search}
@@ -115,6 +108,26 @@ export default function Grupos() {
           </div>
         </div>
 
+        {isMobile ? (
+          <div className="m-list">
+            {isLoading ? (
+              <div className="loading">Carregando grupos...</div>
+            ) : groups.length === 0 ? (
+              <div className="m-empty">Nenhum grupo encontrado.</div>
+            ) : groups.map((g) => (
+              <div key={g.id} className="m-card clickable" onClick={() => handleEdit(g)}>
+                <div className="m-card-title">{g.nome}</div>
+                {g.descricao && <div className="m-card-sub">{g.descricao}</div>}
+                <div className="m-card-actions" onClick={(event) => event.stopPropagation()}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => handleEdit(g)}><Edit3 size={15} /> Editar</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => deleteMutation.mutate(g.id)} style={{ color: 'var(--accent-red)' }}><Trash2 size={15} /> Excluir</button>
+                </div>
+              </div>
+            ))}
+            <InfiniteScroll hasMore={!!lista.hasNextPage} loading={lista.isFetchingNextPage} onLoadMore={lista.fetchNextPage} />
+          </div>
+        ) : (
+        <>
         <div className="table-wrapper">
           <table className="table">
             <thead>
@@ -154,18 +167,20 @@ export default function Grupos() {
         </div>
 
         {/* Paginação */}
-        {!isLoading && data && data.count > 50 && (
+        {!isLoading && totalPages > 1 && (
           <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
             <button className="btn btn-sm btn-ghost" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
               <ChevronLeft size={16} />
               Anterior
             </button>
             <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)' }}>Página {page}</span>
-            <button className="btn btn-sm btn-ghost" onClick={() => setPage(p => p + 1)} disabled={page * 50 >= data.count}>
+            <button className="btn btn-sm btn-ghost" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
               Próxima
               <ChevronRight size={16} />
             </button>
           </div>
+        )}
+        </>
         )}
       </div>
 
