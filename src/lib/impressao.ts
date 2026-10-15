@@ -79,21 +79,27 @@ export function montarCupomHtml(dados: CupomDados): string {
   @page { size: 80mm auto; margin: 0; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #000; }
+  /* Fonte encorpada e em negrito: o driver imprime o cupom como imagem e
+     traços finos saem claros/falhados no papel térmico. */
   body {
-    width: 72mm;
-    padding: 2mm 3mm 6mm;
-    font-family: 'Courier New', Consolas, monospace;
-    font-size: 11px;
-    line-height: 1.3;
+    width: 68mm;
+    padding: 2mm 2mm 6mm;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.35;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .center { text-align: center; }
   .bold { font-weight: 700; }
-  .big { font-size: 15px; }
+  .big { font-size: 16px; }
   .muted { margin-top: 2px; }
   .sep { border-top: 1px dashed #000; margin: 4px 0; }
+  .sep, .sep-strong { width: 100%; }
   .sep-strong { border-top: 2px solid #000; margin: 4px 0; }
   .row { display: flex; justify-content: space-between; gap: 8px; }
-  .cols { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; padding-left: 8mm; text-align: right; }
+  .cols { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; padding-left: 6mm; text-align: right; }
   .cols span:first-child { text-align: left; }
   .item { word-break: break-word; }
   .right { text-align: right; }
