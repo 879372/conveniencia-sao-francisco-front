@@ -15,7 +15,7 @@ export const LOJA = {
   bairro: 'MASSANGANA - CEARÁ-MIRIM RN - 59570000',
 };
 
-const FORMAS: Record<string, string> = {
+export const FORMAS: Record<string, string> = {
   DINHEIRO: 'Dinheiro',
   PIX: 'Pix',
   CARTAO_DEBITO: 'Cartão Débito',
