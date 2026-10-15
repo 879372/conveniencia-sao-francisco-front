@@ -59,10 +59,8 @@ export default function Vendas() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [dateRange, setDateRange] = useState({
-    start: new Date().toLocaleDateString('sv-SE'),
-    end: new Date().toLocaleDateString('sv-SE')
-  });
+  // Sem data por padrão: mostra todas as vendas (a API já ordena das mais recentes).
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedVenda, setSelectedVenda] = useState<Venda | null>(null);
   const [vendaParaCancelar, setVendaParaCancelar] = useState<{ id: number, justificativa?: string } | null>(null);
 
@@ -75,8 +73,8 @@ export default function Vendas() {
         params: {
           q: searchTerm,
           status: statusFilter || undefined,
-          data_inicio: dateRange.start,
-          data_fim: dateRange.end,
+          data_inicio: dateRange.start || undefined,
+          data_fim: dateRange.end || undefined,
           page
         }
       });
