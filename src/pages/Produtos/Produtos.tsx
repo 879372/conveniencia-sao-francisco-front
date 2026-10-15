@@ -138,10 +138,7 @@ export default function Produtos() {
                   <tr
                     key={p.id}
                     onClick={() => handleEdit(p)}
-                    style={{
-                      cursor: 'pointer',
-                      opacity: p.ativo ? 1 : 0.6
-                    }}
+                    style={{ cursor: 'pointer' }}
                   >
                     <td style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.8rem' }}>{p.codigo_legado || '—'}</td>
                     <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{p.nome}</td>
@@ -158,20 +155,23 @@ export default function Produtos() {
                     </td>
                     <td>
                       <div className="product-actions">
-                        <button type="button" className="btn btn-icon product-action-btn product-action-edit" onClick={(event) => { event.stopPropagation(); handleEdit(p); }} title="Editar" aria-label={`Editar ${p.nome}`}>
-                          <Edit3 size={19} strokeWidth={2.4} aria-hidden="true" />
+                        <button type="button" className="btn product-action-btn" onClick={(event) => { event.stopPropagation(); handleEdit(p); }} title="Editar" aria-label={`Editar ${p.nome}`}>
+                          <Edit3 size={23} strokeWidth={2.5} aria-hidden="true" />
+                          <span>Editar</span>
                         </button>
-                        <button type="button" className="btn btn-icon product-action-btn product-action-history" onClick={(event) => { event.stopPropagation(); handleKardex(p); }} title="Histórico (Kardex)" aria-label={`Histórico de ${p.nome}`}>
-                          <History size={19} strokeWidth={2.4} aria-hidden="true" />
+                        <button type="button" className="btn product-action-btn" onClick={(event) => { event.stopPropagation(); handleKardex(p); }} title="Histórico (Kardex)" aria-label={`Histórico de ${p.nome}`}>
+                          <History size={23} strokeWidth={2.5} aria-hidden="true" />
+                          <span>Histórico</span>
                         </button>
                         <button
                           type="button"
-                          className={`btn btn-icon product-action-btn product-action-toggle ${p.ativo ? 'is-active' : 'is-inactive'}`}
+                          className="btn product-action-btn"
                           onClick={(event) => { event.stopPropagation(); handleToggle(p); }}
                           title={p.ativo ? 'Desativar' : 'Ativar'}
                           aria-label={`${p.ativo ? 'Desativar' : 'Ativar'} ${p.nome}`}
                         >
-                          {p.ativo ? <ToggleRight size={21} strokeWidth={2.4} aria-hidden="true" /> : <ToggleLeft size={21} strokeWidth={2.4} aria-hidden="true" />}
+                          {p.ativo ? <ToggleRight size={24} strokeWidth={2.5} aria-hidden="true" /> : <ToggleLeft size={24} strokeWidth={2.5} aria-hidden="true" />}
+                          <span>{p.ativo ? 'Desativar' : 'Ativar'}</span>
                         </button>
                       </div>
                     </td>
