@@ -393,6 +393,57 @@ button, input, select, textarea {
   color: var(--text-primary);
 }
 
+.product-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.product-action-btn {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  border-width: 1px;
+  border-style: solid;
+  box-shadow: 0 2px 5px rgba(21, 28, 42, 0.14);
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.product-action-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.94);
+  box-shadow: 0 4px 9px rgba(21, 28, 42, 0.2);
+}
+
+.product-action-btn:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.3);
+  outline-offset: 2px;
+}
+
+.product-action-edit {
+  color: #fff;
+  background: #2563eb;
+  border-color: #1d4ed8;
+}
+
+.product-action-history {
+  color: #fff;
+  background: #8b5a12;
+  border-color: #70450a;
+}
+
+.product-action-toggle.is-active {
+  color: #fff;
+  background: #dc2626;
+  border-color: #b91c1c;
+}
+
+.product-action-toggle.is-inactive {
+  color: #fff;
+  background: #168344;
+  border-color: #116b37;
+}
+
 /* ========================
    INPUTS
 ======================== */
