@@ -1,10 +1,12 @@
 import { FormEvent, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Boxes, History, Pencil, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../lib/api';
 import KardexModal from '../Produtos/KardexModal';
 import Modal from '../../components/Modal';
+import InfiniteScroll from '../../components/InfiniteScroll';
+import { PaginaApi, usePaginatedList } from '../../hooks/usePaginatedList';
 
 interface ProdutoEstoque {
   id: string | number;
@@ -15,26 +17,18 @@ interface ProdutoEstoque {
   ativo: boolean;
 }
 
-interface ApiResponse {
-  count: number;
-  results: ProdutoEstoque[];
-}
-
 export default function Estoque() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [produto, setProduto] = useState<ProdutoEstoque | null>(null);
   const [novoSaldo, setNovoSaldo] = useState('');
   const [kardex, setKardex] = useState<ProdutoEstoque | null>(null);
 
-  const { data, isLoading } = useQuery<ApiResponse>({
-    queryKey: ['estoque', search, page],
-    queryFn: async () => {
-      const response = await api.get('/produtos/', { params: { search, page } });
-      return response.data;
-    },
+  const lista = usePaginatedList<ProdutoEstoque>(['estoque', search], async (page) => {
+    const response = await api.get<PaginaApi<ProdutoEstoque>>('/produtos/', { params: { search, page } });
+    return response.data;
   });
+  const { items, count, isLoading, page, setPage, totalPages, isMobile } = lista;
 
   const ajusteMutation = useMutation({
     mutationFn: async () => {
@@ -73,14 +67,15 @@ export default function Estoque() {
           <h1 className="page-title">Estoque</h1>
           <p className="page-subtitle">Consulte e ajuste o saldo atual de cada produto</p>
         </div>
-        <div className="badge badge-blue">{data?.count ?? 0} produtos</div>
+        <div className="badge badge-blue">{count} produtos</div>
       </div>
 
-      <div className="card table-card">
+      <div className="card table-card list-card">
         <div className="table-toolbar">
           <div className="search-input-wrapper">
             <Search size={18} className="search-icon" />
             <input
+              type="search"
               className="input"
               placeholder="Buscar produto ou código..."
               value={search}
@@ -89,6 +84,41 @@ export default function Estoque() {
           </div>
         </div>
 
+        {isMobile ? (
+          <div className="m-list">
+            {isLoading ? (
+              <div className="loading">Carregando estoque...</div>
+            ) : items.length === 0 ? (
+              <div className="m-empty">Nenhum produto encontrado.</div>
+            ) : items.map((item) => {
+              const saldo = Number(item.estoque_atual || 0);
+              const baixo = saldo <= 10;
+              return (
+                <div key={item.id} className="m-card">
+                  <div className="m-card-head">
+                    <div>
+                      <div className="m-card-title">{item.nome}</div>
+                      <div className="m-card-sub">Cód. {item.codigo_legado || '—'} · {item.unidade_medida}</div>
+                    </div>
+                    <span className={`badge ${baixo ? 'badge-yellow' : 'badge-green'}`}>
+                      {baixo ? <AlertTriangle size={12} /> : <Boxes size={12} />}
+                      {baixo ? 'Baixo' : 'Normal'}
+                    </span>
+                  </div>
+                  <div className="m-card-meta">
+                    <span>Saldo atual: <strong className={baixo ? 'text-danger' : 'text-success'} style={{ fontSize: '1.05rem' }}>{saldo.toLocaleString('pt-BR', { maximumFractionDigits: 3 })}</strong></span>
+                  </div>
+                  <div className="m-card-actions">
+                    <button className="btn btn-ghost btn-sm" onClick={() => setKardex(item)}><History size={15} /> Histórico</button>
+                    <button className="btn btn-primary btn-sm" onClick={() => abrirAjuste(item)}><Pencil size={15} /> Ajustar</button>
+                  </div>
+                </div>
+              );
+            })}
+            <InfiniteScroll hasMore={!!lista.hasNextPage} loading={lista.isFetchingNextPage} onLoadMore={lista.fetchNextPage} />
+          </div>
+        ) : (
+        <>
         <div className="table-wrapper">
           <table className="table">
             <thead>
@@ -104,7 +134,7 @@ export default function Estoque() {
             <tbody>
               {isLoading ? [1, 2, 3, 4, 5].map((item) => (
                 <tr key={item}><td colSpan={6}><div className="skeleton-line" style={{ height: 24 }} /></td></tr>
-              )) : data?.results.map((item) => {
+              )) : items.map((item) => {
                 const saldo = Number(item.estoque_atual || 0);
                 const baixo = saldo <= 10;
                 return (
@@ -132,12 +162,14 @@ export default function Estoque() {
           </table>
         </div>
 
-        {data && data.count > 50 && (
+        {totalPages > 1 && (
           <div className="pagination-bar">
             <button className="btn btn-ghost btn-sm" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>Anterior</button>
             <span>Página {page}</span>
-            <button className="btn btn-ghost btn-sm" disabled={page * 50 >= data.count} onClick={() => setPage((value) => value + 1)}>Próxima</button>
+            <button className="btn btn-ghost btn-sm" disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)}>Próxima</button>
           </div>
+        )}
+        </>
         )}
       </div>
 

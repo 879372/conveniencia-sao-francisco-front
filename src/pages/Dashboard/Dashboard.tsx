@@ -11,6 +11,7 @@ import {
   CalendarDays
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import {
   BarChart,
   Bar,
@@ -42,6 +43,11 @@ export default function Dashboard() {
     refetchInterval: 30000, // Atualiza a cada 30 segundos
   });
 
+  const isMobile = useIsMobile();
+  const eixoValor = (val: number) => isMobile
+    ? Number(val).toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 })
+    : `R$ ${Number(val).toLocaleString('pt-BR')}`;
+
   const todayStr = new Date().toLocaleDateString('pt-BR', {
     weekday: 'long',
     day: 'numeric',
@@ -55,14 +61,14 @@ export default function Dashboard() {
 
   return (
     <div className="animate-in">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
+      <div className="page-header dashboard-header">
+        <div style={{ minWidth: 0 }}>
           <h1 className="page-title">Painel de Controle</h1>
           <p className="page-subtitle">Panorama atual do sistema — {todayStr}</p>
         </div>
-        <button className="btn btn-ghost" onClick={toggleValues} title={showValues ? "Ocultar Valores" : "Mostrar Valores"}>
+        <button className="btn btn-ghost dashboard-privacy" onClick={toggleValues} title={showValues ? "Ocultar Valores" : "Mostrar Valores"} aria-label={showValues ? "Ocultar valores" : "Mostrar valores"}>
           {showValues ? <EyeOff size={20} /> : <Eye size={20} />}
-          <span style={{ marginLeft: 8 }}>{showValues ? "Privacidade" : "Ver Valores"}</span>
+          <span className="dashboard-privacy-label" style={{ marginLeft: 8 }}>{showValues ? "Privacidade" : "Ver Valores"}</span>
         </button>
       </div>
 
@@ -135,7 +141,7 @@ export default function Dashboard() {
 
       <div className="dashboard-main-grid">
         {/* Gráfico de Vendas */}
-        <div className="card" style={{ height: 400, display: 'flex', flexDirection: 'column' }}>
+        <div className="card dashboard-chart-card" style={{ height: 400, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
             <CalendarDays size={18} className="text-accent" style={{ color: 'var(--accent)' }} />
             <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Movimento do Mês</h3>
@@ -154,7 +160,8 @@ export default function Dashboard() {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
-                  tickFormatter={(val) => `R$ ${Number(val).toLocaleString('pt-BR')}`}
+                  tickFormatter={eixoValor}
+                  width={isMobile ? 44 : 60}
                 />
                 <Tooltip
                   cursor={{ fill: 'rgba(255,255,255,0.05)' }}

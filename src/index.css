@@ -194,22 +194,9 @@ button, input, select, textarea {
   min-width: 0;
 }
 
-/* Hamburger button (hidden on desktop) */
-.hamburger {
+/* Barra superior mobile (oculta no desktop) */
+.mobile-topbar {
   display: none;
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  z-index: 98;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px;
-  cursor: pointer;
-  color: var(--text-primary);
-  font-size: 1.1rem;
-  line-height: 1;
-  box-shadow: 0 4px 12px rgba(87, 57, 20, 0.15);
 }
 
 .page-header {
@@ -856,16 +843,57 @@ button, input, select, textarea {
     display: block;
   }
 
-  /* Hamburger visible */
-  .hamburger {
-    display: flex;
-  }
-
   /* Main expands to full width */
   .main-content {
     margin-left: 0;
-    padding: 64px 14px 24px;
+    padding: 0 14px 24px;
   }
+
+  .mobile-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 -14px 16px;
+    padding: max(10px, env(safe-area-inset-top)) 14px 10px;
+    background: rgba(247, 244, 237, 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mobile-topbar-menu {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  .mobile-topbar img {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+
+  .mobile-topbar span {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-topbar strong { color: var(--text-primary); }
 
   /* Caso o PDV esteja ativo, removemos o padding para ele ocupar a tela TODA */
   .main-content:has(.pdv-container) {
@@ -951,20 +979,7 @@ button, input, select, textarea {
     flex: 1;
   }
 
-  .modal-overlay {
-    padding: 12px !important;
-    align-items: flex-end;
-  }
-
-  .modal-panel,
-  .modal-panel-lg,
-  .modal-panel-sm,
-  .modal-content {
-    width: 100% !important;
-    max-width: none !important;
-    max-height: 92dvh !important;
-    border-radius: 18px 18px 10px 10px;
-  }
+  /* Modais em tela cheia: ver bloco MOBILE no fim do arquivo. */
 
   .modal-titlebar {
     margin-bottom: 20px;
@@ -1726,15 +1741,301 @@ button, input, select, textarea {
   }
 }
 
+
+/* ========================
+   MOBILE — listas em card, filtros, modais em tela cheia
+   (fica no fim do arquivo para prevalecer sobre os blocos anteriores)
+======================== */
+.m-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.m-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(87, 57, 20, 0.05);
+}
+
+.m-card.clickable { cursor: pointer; }
+.m-card.clickable:active { background: var(--bg-hover); }
+
+.m-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.m-card-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.3;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.m-card-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+.m-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.m-card-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.m-card-value {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.m-card-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 10px;
+  margin-top: 2px;
+  border-top: 1px solid var(--border);
+}
+
+.m-card-actions .btn { flex: 1; justify-content: center; }
+.m-card-actions .btn-icon { flex: 0 0 44px; }
+
+.m-empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.infinite-scroll {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 0 8px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.mobile-filters { width: 100%; }
+
+.mobile-filters-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.mobile-filters-search { flex: 1; min-width: 0; }
+.mobile-filters-search .form-label { display: none; }
+
+.mobile-filters-summary {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mobile-filters-toggle {
+  position: relative;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.mobile-filters-toggle.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.mobile-filters-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 18px;
+}
+
+.mobile-filters-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+  animation: slide-up 0.18s ease-out;
+}
+
+.mobile-filters-panel .btn { width: 100%; }
+
 @media (max-width: 768px) {
-  .modal-panel,
-  .modal-panel-md,
-  .modal-panel-lg,
-  .modal-panel-sm,
-  .modal-content {
+  /* Sem zoom automático ao focar campos (iOS/Android exigem >= 16px). */
+  input:not(.input-emphasis),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  .main-content {
+    overflow-x: clip;
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+
+  /* Dashboards e indicadores: um abaixo do outro. */
+  .kpi-grid,
+  .compact-kpis,
+  .finance-kpis,
+  .dashboard-main-grid,
+  .reports-grid,
+  .stack-mobile {
+    grid-template-columns: 1fr !important;
+  }
+
+  .kpi-value { font-size: 1.35rem; }
+
+  /* Lista em cards: o card externo vira só um container. */
+  .list-card {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .list-card > .table-toolbar {
+    padding: 0 0 12px;
+    border-bottom: 0;
+  }
+
+  .list-card .search-input-wrapper { max-width: none !important; }
+
+  .filter-card { padding: 12px !important; }
+
+  /* Cabeçalhos com ação principal ocupando a largura. */
+  .page-header[style] > .btn,
+  .page-header-row > .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Modais ocupam a tela inteira. */
+  .modal-overlay {
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+  }
+
+  .modal-overlay > [role="dialog"] {
     width: 100% !important;
     max-width: none !important;
-    max-height: 92dvh !important;
-    border-radius: 18px 18px 10px 10px;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    overflow-y: auto !important;
+    padding-top: max(16px, env(safe-area-inset-top)) !important;
+    display: flex;
+    flex-direction: column;
   }
+
+  .modal-overlay > [role="dialog"] > form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Rodapé de ação sempre visível no fim da tela. */
+  .modal-overlay > [role="dialog"] .modal-footer,
+  .modal-overlay > [role="dialog"] .modal-actions {
+    margin-top: auto;
+  }
+
+  .modal-text-center { justify-content: center; }
+}
+
+@media (max-width: 768px) {
+  .sale-detail-header { padding: 0 16px 14px !important; }
+  .sale-detail-body { padding: 16px !important; max-height: none !important; flex: 1; }
+  .sale-detail-body > div { margin-bottom: 20px !important; }
+  .sale-detail-footer {
+    position: sticky;
+    bottom: 0;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom)) !important;
+    background: var(--bg-card) !important;
+  }
+  .sale-detail-actions { width: 100%; flex-direction: column; gap: 8px !important; }
+  .sale-detail-actions .btn { width: 100%; justify-content: center; }
+}
+
+@media (max-width: 768px) {
+  .kardex-body { max-height: none !important; flex: 1; }
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .dashboard-header { align-items: flex-start; }
+  .dashboard-privacy { flex: 0 0 44px; width: 44px; padding: 0; justify-content: center; }
+  .dashboard-privacy-label { display: none; }
+  .dashboard-chart-card { height: 300px !important; }
+}
+
+@media (max-width: 768px) {
+  .page-header-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .page-header-row > .badge { align-self: flex-start; }
 }

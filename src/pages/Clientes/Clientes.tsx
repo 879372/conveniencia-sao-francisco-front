@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { toast } from 'sonner';
 import ClienteModal from './ClienteModal';
 import ConfirmModal from '../../components/ConfirmModal';
+import InfiniteScroll from '../../components/InfiniteScroll';
+import { PaginaApi, usePaginatedList } from '../../hooks/usePaginatedList';
 import {
   Plus,
   Search,
@@ -35,27 +37,18 @@ interface Cliente {
   codigo_legado?: string;
 }
 
-interface ApiResponse {
-  count: number;
-  results: Cliente[];
-}
-
 export default function Clientes() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [clienteParaToggle, setClienteParaToggle] = useState<Cliente | null>(null);
 
-  // Fetch Clientes with React Query
-  const { data, isLoading } = useQuery<ApiResponse>({
-    queryKey: ['clientes', search, page],
-    queryFn: async () => {
-      const resp = await api.get('/clientes/', { params: { search, page } });
-      return resp.data;
-    },
+  const lista = usePaginatedList<Cliente>(['clientes', search], async (page) => {
+    const resp = await api.get<PaginaApi<Cliente>>('/clientes/', { params: { search, page } });
+    return resp.data;
   });
+  const { items: clientes, count, isLoading, page, setPage, totalPages, isMobile } = lista;
 
   // Toggle Active Status Mutation
   const toggleMutation = useMutation({
@@ -89,7 +82,7 @@ export default function Clientes() {
         <div>
           <h1 className="page-title">Gestão de Clientes</h1>
           <p className="page-subtitle">
-            {isLoading ? 'Carregando total...' : `${data?.count.toLocaleString('pt-BR')} registros na base`}
+            {isLoading ? 'Carregando total...' : `${count.toLocaleString('pt-BR')} registros na base`}
           </p>
         </div>
         <button className="btn btn-primary" onClick={handleNew}>
@@ -98,11 +91,12 @@ export default function Clientes() {
         </button>
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid var(--border)' }}>
+      <div className="card table-card list-card">
+        <div className="table-toolbar">
           <div className="search-input-wrapper" style={{ maxWidth: '400px' }}>
             <Search size={18} className="search-icon" />
             <input
+              type="search"
               className="input"
               placeholder="Buscar por nome, CPF/CNPJ ou código..."
               value={search}
@@ -111,6 +105,48 @@ export default function Clientes() {
           </div>
         </div>
 
+        {isMobile ? (
+          <div className="m-list">
+            {isLoading ? (
+              <div className="loading">Carregando clientes...</div>
+            ) : clientes.length === 0 ? (
+              <div className="m-empty">Nenhum cliente encontrado.</div>
+            ) : clientes.map((c) => (
+              <div key={c.id} className="m-card clickable" onClick={() => handleEdit(c)}>
+                <div className="m-card-head">
+                  <div>
+                    <div className="m-card-title">{c.nome}</div>
+                    <div className="m-card-sub">
+                      {c.codigo_legado ? `#${c.codigo_legado} · ` : ''}{c.pessoa === 'F' ? 'Pessoa Física' : 'Pessoa Jurídica'}
+                    </div>
+                  </div>
+                  <span className={`badge ${c.ativo ? 'badge-green' : 'badge-red'}`}>{c.ativo ? 'Ativo' : 'Inativo'}</span>
+                </div>
+                <div className="m-card-meta">
+                  <span><CreditCard size={13} /> {c.cpf_cnpj || '—'}</span>
+                  <span><Phone size={13} /> {c.telefone || '—'}</span>
+                  <span><MapPin size={13} /> {[c.cidade, c.uf].filter(Boolean).join('/') || 'N/D'}</span>
+                </div>
+                <div className="m-card-actions" onClick={(event) => event.stopPropagation()}>
+                  {c.telefone && (
+                    <a className="btn btn-ghost btn-sm" href={`tel:${c.telefone.replace(/\D/g, '')}`}><Phone size={15} /> Ligar</a>
+                  )}
+                  <button className="btn btn-ghost btn-sm" onClick={() => handleEdit(c)}><Edit3 size={15} /> Editar</button>
+                  <button
+                    className="btn btn-ghost btn-sm btn-icon"
+                    onClick={() => handleToggle(c)}
+                    style={{ color: c.ativo ? 'var(--accent-red)' : 'var(--accent-green)' }}
+                    aria-label={`${c.ativo ? 'Desativar' : 'Ativar'} ${c.nome}`}
+                  >
+                    {c.ativo ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                  </button>
+                </div>
+              </div>
+            ))}
+            <InfiniteScroll hasMore={!!lista.hasNextPage} loading={lista.isFetchingNextPage} onLoadMore={lista.fetchNextPage} />
+          </div>
+        ) : (
+        <>
         <div className="table-wrapper">
           <table className="table">
             <thead>
@@ -124,7 +160,7 @@ export default function Clientes() {
                   </tr>
                 ))
               ) : (
-                data?.results.map((c) => (
+                clientes.map((c) => (
                   <tr key={c.id}>
                     <td>
                         <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{c.nome}</div>
@@ -177,18 +213,20 @@ export default function Clientes() {
         </div>
 
         {/* Paginação */}
-        {!isLoading && data && data.count > 50 && (
+        {!isLoading && totalPages > 1 && (
           <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }}>
             <button className="btn btn-sm btn-ghost" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
               <ChevronLeft size={16} />
               Anterior
             </button>
             <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)' }}>Página {page}</span>
-            <button className="btn btn-sm btn-ghost" onClick={() => setPage(p => p + 1)} disabled={page * 50 >= data.count}>
+            <button className="btn btn-sm btn-ghost" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
               Próxima
               <ChevronRight size={16} />
             </button>
           </div>
+        )}
+        </>
         )}
       </div>
 

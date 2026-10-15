@@ -47,10 +47,6 @@ export default function Layout() {
 
   return (
     <div className="layout">
-      {/* Mobile Hamburger */}
-      <button className="hamburger" onClick={() => setSidebarOpen(true)} aria-label="Abrir menu">
-        <Menu size={20} />
-      </button>
 
       {/* Mobile Overlay */}
       <div
@@ -138,6 +134,14 @@ export default function Layout() {
 
       {/* MAIN CONTENT */}
       <main className="main-content">
+        {/* Barra superior (só mobile): menu + nome da loja, fixa ao rolar */}
+        <header className="mobile-topbar">
+          <button className="mobile-topbar-menu" onClick={() => setSidebarOpen(true)} aria-label="Abrir menu">
+            <Menu size={20} />
+          </button>
+          <img src="/logo-conveniencia-sao-francisco.png" alt="" />
+          <span>Conveniência <strong>São Francisco</strong></span>
+        </header>
         <Outlet />
       </main>
     </div>

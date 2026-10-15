@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import {
   Search,
@@ -17,6 +17,9 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import ConfirmModal from '../../components/ConfirmModal';
 import Modal from '../../components/Modal';
+import FilterPanel from '../../components/FilterPanel';
+import InfiniteScroll from '../../components/InfiniteScroll';
+import { usePaginatedList } from '../../hooks/usePaginatedList';
 
 interface VendaItem {
   id: number;
@@ -64,11 +67,9 @@ export default function Vendas() {
   const [selectedVenda, setSelectedVenda] = useState<Venda | null>(null);
   const [vendaParaCancelar, setVendaParaCancelar] = useState<{ id: number, justificativa?: string } | null>(null);
 
-  const [page, setPage] = useState(1);
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['vendas', searchTerm, statusFilter, dateRange, page],
-    queryFn: async () => {
+  const lista = usePaginatedList<Venda>(
+    ['vendas', searchTerm, statusFilter, dateRange],
+    async (page) => {
       const resp = await api.get('/vendas/', {
         params: {
           q: searchTerm,
@@ -80,11 +81,9 @@ export default function Vendas() {
       });
       return resp.data;
     }
-  });
-
-  const vendas: Venda[] = data?.results || (Array.isArray(data) ? data : []);
-  const totalItems = data?.count || 0;
-  const totalPages = Math.ceil(totalItems / 50) || 1;
+  );
+  const { items: vendas, isLoading, page, setPage, totalPages, isMobile } = lista;
+  const filtrosAtivos = [dateRange.start, dateRange.end, statusFilter].filter(Boolean).length;
 
   const cancelarMutation = useMutation({
     mutationFn: ({ id, justificativa }: { id: number, justificativa?: string }) =>
@@ -127,64 +126,94 @@ export default function Vendas() {
       </div>
 
       {/* FILTROS */}
-      <div className="card" style={{ marginBottom: 24, padding: '16px 24px' }}>
+      <div className="card filter-card" style={{ marginBottom: 24, padding: '16px 24px' }}>
         <div className="responsive-toolbar-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1.5fr) 1fr 1fr 1fr auto', gap: 12, alignItems: 'end' }}>
-          <div>
-            <label className="form-label" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>CLIENTE / ID</label>
-            <div className="search-input-wrapper" style={{ margin: 0 }}>
-              <Search className="search-icon" size={18} />
+          <FilterPanel
+            ativos={filtrosAtivos}
+            search={
+              <div>
+                <label className="form-label" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>CLIENTE / ID</label>
+                <div className="search-input-wrapper" style={{ margin: 0 }}>
+                  <Search className="search-icon" size={18} />
+                  <input
+                    type="search"
+                    className="input"
+                    placeholder="Buscar venda..."
+                    value={searchTerm}
+                    onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
+                  />
+                </div>
+              </div>
+            }
+          >
+            <div>
+              <label className="form-label" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>DATA INICIAL</label>
               <input
-                type="text"
+                type="date"
                 className="input"
-                placeholder="Buscar..."
-                value={searchTerm}
-                onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
+                value={dateRange.start}
+                onChange={e => { setDateRange(prev => ({ ...prev, start: e.target.value })); setPage(1); }}
               />
             </div>
-          </div>
 
-          <div>
-            <label className="form-label" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>DATA INICIAL</label>
-            <input
-              type="date"
-              className="input"
-              value={dateRange.start}
-              onChange={e => { setDateRange(prev => ({ ...prev, start: e.target.value })); setPage(1); }}
-            />
-          </div>
+            <div>
+              <label className="form-label" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>DATA FINAL</label>
+              <input
+                type="date"
+                className="input"
+                value={dateRange.end}
+                onChange={e => { setDateRange(prev => ({ ...prev, end: e.target.value })); setPage(1); }}
+              />
+            </div>
 
-          <div>
-            <label className="form-label" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>DATA FINAL</label>
-            <input
-              type="date"
-              className="input"
-              value={dateRange.end}
-              onChange={e => { setDateRange(prev => ({ ...prev, end: e.target.value })); setPage(1); }}
-            />
-          </div>
+            <div>
+              <label className="form-label" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>STATUS</label>
+              <select
+                className="select"
+                value={statusFilter}
+                onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
+              >
+                <option value="">Todos</option>
+                <option value="FINALIZADA">Finalizadas</option>
+                <option value="CANCELADA">Canceladas</option>
+                <option value="EM_ABERTO">Em Aberto</option>
+              </select>
+            </div>
 
-          <div>
-            <label className="form-label" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>STATUS</label>
-            <select
-              className="select"
-              value={statusFilter}
-              onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-            >
-              <option value="">Todos</option>
-              <option value="FINALIZADA">Finalizadas</option>
-              <option value="CANCELADA">Canceladas</option>
-              <option value="EM_ABERTO">Em Aberto</option>
-            </select>
-          </div>
-
-          <button className="btn btn-ghost" onClick={() => queryClient.invalidateQueries({ queryKey: ['vendas'] })} style={{ height: 42 }}>
-            <Clock size={18} />
-            Atualizar
-          </button>
+            <button className="btn btn-ghost" onClick={() => queryClient.invalidateQueries({ queryKey: ['vendas'] })} style={{ height: 42 }}>
+              <Clock size={18} />
+              Atualizar
+            </button>
+          </FilterPanel>
         </div>
       </div>
 
-      {/* TABELA */}
+      {/* LISTA (mobile) */}
+      {isMobile ? (
+        <div className="m-list">
+          {isLoading ? (
+            <div className="loading">Carregando vendas...</div>
+          ) : vendas.length === 0 ? (
+            <div className="m-empty">Nenhuma venda encontrada.</div>
+          ) : vendas.map((v) => (
+            <div key={v.id} className="m-card clickable" onClick={() => setSelectedVenda(v)}>
+              <div className="m-card-head">
+                <div>
+                  <div className="m-card-title">Venda #{String(v.id).slice(-6).toUpperCase()}</div>
+                  <div className="m-card-sub">{new Date(v.data).toLocaleString('pt-BR')}</div>
+                </div>
+                {getStatusBadge(v.status)}
+              </div>
+              <div className="m-card-head" style={{ alignItems: 'center' }}>
+                <div className="m-card-meta"><span><User size={13} /> {v.cliente_nome || 'Consumidor Final'}</span></div>
+                <div className="m-card-value">R$ {formatCurrency(Number(v.total) - Number(v.desconto || 0))}</div>
+              </div>
+            </div>
+          ))}
+          <InfiniteScroll hasMore={!!lista.hasNextPage} loading={lista.isFetchingNextPage} onLoadMore={lista.fetchNextPage} />
+        </div>
+      ) : (
+      /* TABELA */
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div className="table-wrapper">
           <table className="table">
@@ -251,6 +280,7 @@ export default function Vendas() {
           </div>
         )}
       </div>
+      )}
 
       {/* MODAL DE DETALHES */}
       {selectedVenda && (
@@ -261,7 +291,7 @@ export default function Vendas() {
           panelStyle={{ width: '100%', maxWidth: 1000, padding: 0, overflow: 'hidden' }}
           overlayStyle={{ zIndex: 1000 }}
         >
-            <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)' }}>
+            <div className="sale-detail-header" style={{ padding: '24px 32px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)' }}>
               <div style={{ flex: 1 }}>
                 <h2 id="sale-details-title" style={{ fontSize: '1.25rem', fontWeight: 900 }}>Venda #{selectedVenda?.id ? String(selectedVenda.id).slice(-6).toUpperCase() : '---'}</h2>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -273,10 +303,10 @@ export default function Vendas() {
               </button>
             </div>
 
-            <div style={{ padding: '32px', maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="sale-detail-body" style={{ padding: '32px', maxHeight: '70vh', overflowY: 'auto' }}>
                <div style={{ marginBottom: 32 }}>
                   <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>Itens da Venda</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="stack-mobile" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                      {selectedVenda.itens?.map((item, idx) => (
                        <div key={`item-${item.id}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px solid var(--border)' }}>
                           <div>
@@ -291,7 +321,7 @@ export default function Vendas() {
                   </div>
                </div>
 
-               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
+               <div className="stack-mobile" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
                   <div>
                      <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>Pagamento</h3>
                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -318,9 +348,9 @@ export default function Vendas() {
                </div>
             </div>
 
-            <div style={{ padding: '24px 32px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', background: 'rgba(255,255,255,0.01)' }}>
+            <div className="sale-detail-footer" style={{ padding: '24px 32px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', background: 'rgba(255,255,255,0.01)' }}>
 
-               <div style={{ display: 'flex', gap: 12 }}>
+               <div className="sale-detail-actions" style={{ display: 'flex', gap: 12 }}>
                 {selectedVenda.status === 'FINALIZADA' && (
                   <>
                     <button

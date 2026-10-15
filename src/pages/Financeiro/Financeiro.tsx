@@ -5,6 +5,10 @@ import { toast } from 'sonner';
 import api from '../../lib/api';
 import ConfirmModal from '../../components/ConfirmModal';
 import Modal from '../../components/Modal';
+import FilterPanel from '../../components/FilterPanel';
+import InfiniteScroll from '../../components/InfiniteScroll';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import { useProgressiveList } from '../../hooks/useProgressiveList';
 
 type Tipo = 'DESPESA' | 'RECEBER';
 interface Lancamento {
@@ -114,6 +118,12 @@ export default function Financeiro() {
   const totalReceived = received.reduce((sum, item) => sum + Number(item.valor), 0);
   const list = tab === 'DESPESA' ? filteredExpenses : filteredReceivables;
   const loading = loadingExpenses || loadingReceivables;
+  const isMobile = useIsMobile();
+  const { visiveis, temMais, carregarMais } = useProgressiveList(list, `${tab}|${month}|${search}`);
+
+  const statusBadge = (item: Lancamento) => (
+    <span className={`badge ${item.status === 'RECEBIDO' || item.tipo === 'DESPESA' ? 'badge-green' : item.status === 'VENCIDO' ? 'badge-red' : 'badge-yellow'}`}>{item.tipo === 'DESPESA' ? 'Registrada' : item.status === 'RECEBIDO' ? 'Recebido' : item.status === 'VENCIDO' ? 'Vencido' : 'A receber'}</span>
+  );
 
   const submit = (event: FormEvent) => { event.preventDefault(); saveMutation.mutate(); };
 
@@ -133,21 +143,47 @@ export default function Financeiro() {
 
       <div className="card filter-card">
         <div className="finance-toolbar">
-          <div className="search-input-wrapper"><Search size={18} className="search-icon" /><input className="input" placeholder="Pesquisar lançamento..." value={search} onChange={(event) => setSearch(event.target.value)} /></div>
-          <div className="date-control"><Calendar size={18} /><input className="input" type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></div>
+          <FilterPanel
+            ativos={month !== localDate().slice(0, 7) ? 1 : 0}
+            search={<div className="search-input-wrapper"><Search size={18} className="search-icon" /><input type="search" className="input" placeholder="Pesquisar lançamento..."  value={search} onChange={(event) => setSearch(event.target.value)} /></div>}
+          >
+            <div className="date-control"><Calendar size={18} /><input className="input" type="month" aria-label="Mês" value={month} onChange={(event) => setMonth(event.target.value)} /></div>
+          </FilterPanel>
           <div className="segmented-control"><button className={tab === 'RECEBER' ? 'active' : ''} onClick={() => setTab('RECEBER')}><TrendingUp size={16} /> Recebíveis</button><button className={tab === 'DESPESA' ? 'active' : ''} onClick={() => setTab('DESPESA')}><Receipt size={16} /> Despesas</button></div>
         </div>
       </div>
 
-      <div className="card table-card">
-        {loading ? <div className="loading">Carregando financeiro...</div> : list.length === 0 ? <div className="empty-state"><Wallet size={44} /><h3>Nenhum lançamento no período</h3></div> : (
+      <div className="card table-card list-card">
+        {loading ? <div className="loading">Carregando financeiro...</div> : list.length === 0 ? <div className="empty-state"><Wallet size={44} /><h3>Nenhum lançamento no período</h3></div> : isMobile ? (
+          <div className="m-list">
+            {visiveis.map((item) => (
+              <div key={`${item.tipo}-${item.id}`} className="m-card">
+                <div className="m-card-head">
+                  <div>
+                    <div className="m-card-title">{item.descricao}</div>
+                    <div className="m-card-sub">{item.fornecedor || item.cliente_nome || 'Sem identificação'} · {displayDate(item.vencimento)}</div>
+                  </div>
+                  <div className={`m-card-value ${item.tipo === 'DESPESA' ? 'text-danger' : 'text-success'}`}>{money(item.valor)}</div>
+                </div>
+                {item.observacoes && <div className="m-card-sub">{item.observacoes}</div>}
+                <div>{statusBadge(item)}</div>
+                <div className="m-card-actions">
+                  {item.tipo === 'RECEBER' && item.status !== 'RECEBIDO' && <button className="btn btn-primary btn-sm" onClick={() => receiveMutation.mutate(item)}><CheckCircle2 size={15} /> Receber</button>}
+                  <button className="btn btn-ghost btn-sm" onClick={() => openEdit(item)}><Pencil size={15} /> Editar</button>
+                  <button className="btn btn-ghost btn-sm btn-icon danger" onClick={() => setDeleting(item)} aria-label="Excluir"><Trash2 size={15} /></button>
+                </div>
+              </div>
+            ))}
+            <InfiniteScroll hasMore={temMais} onLoadMore={carregarMais} />
+          </div>
+        ) : (
           <div className="table-wrapper"><table className="table">
             <thead><tr><th>Descrição</th><th>{tab === 'DESPESA' ? 'Fornecedor' : 'Cliente'}</th><th>{tab === 'DESPESA' ? 'Data' : 'Vencimento'}</th><th>Status</th><th>Valor</th><th className="table-actions-cell">Ações</th></tr></thead>
             <tbody>{list.map((item) => (
               <tr key={`${item.tipo}-${item.id}`}>
                 <td><strong>{item.descricao}</strong><div className="mono-muted">{item.observacoes || ''}</div></td>
                 <td>{item.fornecedor || item.cliente_nome || '—'}</td><td>{displayDate(item.vencimento)}</td>
-                <td><span className={`badge ${item.status === 'RECEBIDO' || item.tipo === 'DESPESA' ? 'badge-green' : item.status === 'VENCIDO' ? 'badge-red' : 'badge-yellow'}`}>{item.tipo === 'DESPESA' ? 'Registrada' : item.status === 'RECEBIDO' ? 'Recebido' : item.status === 'VENCIDO' ? 'Vencido' : 'A receber'}</span></td>
+                <td>{statusBadge(item)}</td>
                 <td><strong className={item.tipo === 'DESPESA' ? 'text-danger' : 'text-success'}>{money(item.valor)}</strong></td>
                 <td className="table-actions-cell"><div className="table-actions">
                   {item.tipo === 'RECEBER' && item.status !== 'RECEBIDO' && <button className="btn btn-primary btn-sm" onClick={() => receiveMutation.mutate(item)}><CheckCircle2 size={15} /> Receber</button>}

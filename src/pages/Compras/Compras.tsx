@@ -4,6 +4,10 @@ import { Calendar, FileText, Pencil, Plus, RefreshCw, Search, X } from 'lucide-r
 import { toast } from 'sonner';
 import api from '../../lib/api';
 import Modal from '../../components/Modal';
+import FilterPanel from '../../components/FilterPanel';
+import InfiniteScroll from '../../components/InfiniteScroll';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import { useProgressiveList } from '../../hooks/useProgressiveList';
 
 interface Compra {
   id: string;
@@ -85,6 +89,8 @@ export default function Compras() {
   };
 
   const total = compras.reduce((sum, compra) => sum + Number(compra.valor_total || 0), 0);
+  const isMobile = useIsMobile();
+  const { visiveis, temMais, carregarMais } = useProgressiveList(compras, `${search}|${dates.start}|${dates.end}`);
 
   return (
     <div className="animate-in">
@@ -103,19 +109,46 @@ export default function Compras() {
 
       <div className="card filter-card">
         <div className="responsive-toolbar-grid filters-grid">
-          <div>
-            <label className="form-label">Fornecedor ou documento</label>
-            <div className="search-input-wrapper"><Search size={18} className="search-icon" /><input className="input" placeholder="Pesquisar..." value={search} onChange={(event) => setSearch(event.target.value)} /></div>
-          </div>
-          <div><label className="form-label">Data inicial</label><input type="date" className="input" value={dates.start} onChange={(event) => setDates((value) => ({ ...value, start: event.target.value }))} /></div>
-          <div><label className="form-label">Data final</label><input type="date" className="input" value={dates.end} onChange={(event) => setDates((value) => ({ ...value, end: event.target.value }))} /></div>
-          <button className="btn btn-ghost" onClick={() => refetch()}><RefreshCw size={16} /> Atualizar</button>
+          <FilterPanel
+            ativos={Number(dates.start !== monthStart()) + Number(dates.end !== today())}
+            search={
+              <div>
+                <label className="form-label">Fornecedor ou documento</label>
+                <div className="search-input-wrapper"><Search size={18} className="search-icon" /><input type="search" className="input" placeholder="Pesquisar compra..." value={search} onChange={(event) => setSearch(event.target.value)} /></div>
+              </div>
+            }
+          >
+            <div><label className="form-label">Data inicial</label><input type="date" className="input" value={dates.start} onChange={(event) => setDates((value) => ({ ...value, start: event.target.value }))} /></div>
+            <div><label className="form-label">Data final</label><input type="date" className="input" value={dates.end} onChange={(event) => setDates((value) => ({ ...value, end: event.target.value }))} /></div>
+            <button className="btn btn-ghost" onClick={() => refetch()}><RefreshCw size={16} /> Atualizar</button>
+          </FilterPanel>
         </div>
       </div>
 
-      <div className="card table-card">
+      <div className="card table-card list-card">
         {isLoading ? <div className="loading">Carregando registros...</div> : compras.length === 0 ? (
           <div className="empty-state"><FileText size={44} /><h3>Nenhuma compra encontrada</h3><p>Registre uma compra para manter o histórico organizado.</p></div>
+        ) : isMobile ? (
+          <div className="m-list">
+            {visiveis.map((compra) => (
+              <div key={compra.id} className="m-card clickable" onClick={() => openEdit(compra)}>
+                <div className="m-card-head">
+                  <div>
+                    <div className="m-card-title">{compra.fornecedor}</div>
+                    <div className="m-card-sub">{compra.cnpj_fornecedor || 'CNPJ não informado'}</div>
+                  </div>
+                  <div className="m-card-value text-success">{currency(compra.valor_total)}</div>
+                </div>
+                <div className="m-card-meta">
+                  <span><FileText size={13} /> Doc. {compra.numero_documento || 'S/N'}</span>
+                  <span><Calendar size={13} /> Emissão {formatDate(compra.data_emissao)}</span>
+                  <span>Entrada {formatDate(compra.data_entrada)}</span>
+                </div>
+                {compra.observacoes && <div className="m-card-sub">{compra.observacoes}</div>}
+              </div>
+            ))}
+            <InfiniteScroll hasMore={temMais} onLoadMore={carregarMais} />
+          </div>
         ) : (
           <div className="table-wrapper">
             <table className="table">
