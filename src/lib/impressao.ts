@@ -80,7 +80,6 @@ export function montarCupomHtml(dados: CupomDados): string {
 </head>
 <body>
   <div class="center bold">${escapar(LOJA.nome)}</div>
-  <div class="center">${escapar(LOJA.nome)}</div>
   ${linha(`CNPJ.: ${LOJA.cnpj}`, `IE.: ${LOJA.ie}`)}
   <div>End.: ${escapar(LOJA.endereco)}</div>
   <div>Bairro.: ${escapar(LOJA.bairro)}</div>
