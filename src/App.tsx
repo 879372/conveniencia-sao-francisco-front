@@ -1,18 +1,21 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { useAuthStore } from './store/authStore';
-import Login from './pages/Login/Login';
-import Layout from './components/Layout';
-import Dashboard from './pages/Dashboard/Dashboard';
-import Produtos from './pages/Produtos/Produtos.tsx';
-import Grupos from './pages/Produtos/Grupos.tsx';
-import Clientes from './pages/Clientes/Clientes.tsx';
-import PDV from './pages/PDV/PDV.tsx';
-import Financeiro from './pages/Financeiro/Financeiro.tsx';
-import Compras from './pages/Compras/Compras.tsx';
-import Relatorios from './pages/Relatorios/Relatorios.tsx';
-import Vendas from './pages/Vendas/Vendas.tsx';
 import './index.css';
+
+const Login = lazy(() => import('./pages/Login/Login'));
+const Layout = lazy(() => import('./components/Layout'));
+const Dashboard = lazy(() => import('./pages/Dashboard/Dashboard'));
+const Produtos = lazy(() => import('./pages/Produtos/Produtos.tsx'));
+const Grupos = lazy(() => import('./pages/Produtos/Grupos.tsx'));
+const Clientes = lazy(() => import('./pages/Clientes/Clientes.tsx'));
+const PDV = lazy(() => import('./pages/PDV/PDV.tsx'));
+const Financeiro = lazy(() => import('./pages/Financeiro/Financeiro.tsx'));
+const Compras = lazy(() => import('./pages/Compras/Compras.tsx'));
+const Relatorios = lazy(() => import('./pages/Relatorios/Relatorios.tsx'));
+const Vendas = lazy(() => import('./pages/Vendas/Vendas.tsx'));
+const Estoque = lazy(() => import('./pages/Estoque/Estoque.tsx'));
 
 interface PrivateRouteProps {
   children: React.ReactNode;
@@ -27,7 +30,8 @@ function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-right" richColors closeButton />
-      <Routes>
+      <Suspense fallback={<div className="loading" style={{ minHeight: '100vh' }}>Carregando sistema...</div>}>
+       <Routes>
         <Route path="/login" element={<Login />} />
 
         <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
@@ -35,6 +39,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="produtos" element={<Produtos />} />
           <Route path="produtos/grupos" element={<Grupos />} />
+          <Route path="estoque" element={<Estoque />} />
           <Route path="clientes" element={<Clientes />} />
           <Route path="financeiro" element={<Financeiro />} />
           <Route path="compras" element={<Compras />} />
@@ -46,7 +51,8 @@ function App() {
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

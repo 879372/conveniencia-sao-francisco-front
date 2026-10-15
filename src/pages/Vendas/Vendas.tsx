@@ -9,7 +9,6 @@ import {
   User,
   X,
   ShoppingCart,
-  Smartphone,
   Printer
 } from 'lucide-react';
 import { thermalPrinter } from '../../lib/thermalPrint';
@@ -63,8 +62,6 @@ export default function Vendas() {
     end: new Date().toLocaleDateString('sv-SE')
   });
   const [selectedVenda, setSelectedVenda] = useState<Venda | null>(null);
-  const [showWhatsappModal, setShowWhatsappModal] = useState(false);
-  const [clienteTelefone, setClienteTelefone] = useState('');
   const [vendaParaCancelar, setVendaParaCancelar] = useState<{ id: number, justificativa?: string } | null>(null);
 
   const [page, setPage] = useState(1);
@@ -145,35 +142,6 @@ export default function Vendas() {
       console.error(error);
       toast.error('Erro ao imprimir. Verifique a impressora USB.');
     }
-  };
-
-  const handleSendWhatsapp = () => {
-    if (!selectedVenda) return;
-
-    const publicUrl = (import.meta as any).env.VITE_PUBLIC_URL;
-    const apiBase = publicUrl || ((import.meta as any).env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '');
-    const idExterno = selectedVenda.id_externo;
-
-    if (!idExterno) {
-        toast.error('Não foi possível gerar o link do comprovante.');
-        return;
-    }
-
-    const linkComprovante = `${apiBase}/api/comprovante/${idExterno}/`;
-    const descontoMsg = (selectedVenda.desconto || 0) > 0 ? `Desconto: R$ ${Number(selectedVenda.desconto).toFixed(2)}\n` : '';
-
-    const texto = `*CONVENIÊNCIA SÃO FRANCISCO - Seu Comprovante*\n\n` +
-      `Olá! Segue o link do seu comprovante de compra:\n\n` +
-      `${linkComprovante}\n\n` +
-      descontoMsg +
-      `Obrigado pela preferência!`;
-
-    const encodedText = encodeURIComponent(texto);
-    const fone = clienteTelefone.replace(/\D/g, '');
-
-    window.open(`https://wa.me/${fone ? '55' + fone : ''}?text=${encodedText}`, '_blank');
-    setShowWhatsappModal(false);
-    setClienteTelefone('');
   };
 
   const handleConnectPrinter = async () => {
@@ -402,14 +370,6 @@ export default function Vendas() {
                   <>
                     <button
                       className="btn btn-ghost"
-                      style={{ color: 'var(--accent-green)', borderColor: 'var(--accent-green)' }}
-                      onClick={() => setShowWhatsappModal(true)}
-                    >
-                      <Smartphone size={16} />
-                      WhatsApp
-                    </button>
-                    <button
-                      className="btn btn-ghost"
                       style={{ color: 'var(--accent-green)', background: 'rgba(16, 185, 129, 0.1)' }}
                       onClick={() => handlePrintUSB(selectedVenda)}
                     >
@@ -441,36 +401,6 @@ export default function Vendas() {
                   </button>
                 )}
                </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showWhatsappModal && (
-        <div className="modal-overlay" style={{ zIndex: 2000 }}>
-          <div className="card animate-in" style={{ maxWidth: 450, width: '90%', padding: 32, textAlign: 'center' }}>
-            <div style={{ padding: 12, background: 'rgba(34, 197, 94, 0.1)', borderRadius: '50%', color: 'var(--accent-green)', width: 56, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                <Smartphone size={28} />
-            </div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: 8 }}>Reenviar WhatsApp</h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: 20, fontSize: '0.9rem' }}>Informe o número do cliente.</p>
-
-            <input
-              className="input"
-              type="text"
-              autoFocus
-              value={clienteTelefone}
-              onChange={e => setClienteTelefone(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSendWhatsapp()}
-              style={{ textAlign: 'center', fontSize: '1.25rem', height: 50, fontWeight: 700, marginBottom: 20 }}
-              placeholder="(00) 00000-0000"
-            />
-
-            <div style={{ display: 'flex', gap: 12 }}>
-                <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowWhatsappModal(false)}>Cancelar</button>
-                <button className="btn btn-primary" style={{ flex: 1, background: 'var(--accent-green)' }} onClick={handleSendWhatsapp}>
-                    Enviar Agora
-                </button>
             </div>
           </div>
         </div>

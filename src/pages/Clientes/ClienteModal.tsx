@@ -150,7 +150,7 @@ export default function ClienteModal({ cliente, onClose, onSuccess }: ClienteMod
             </div>
 
             <div style={{ gridColumn: 'span 6' }}>
-              <label className="form-label">Telefone / WhatsApp</label>
+              <label className="form-label">Telefone</label>
               <div style={{ position: 'relative' }}>
                 <Phone size={16} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
                 <input name="telefone" value={formData.telefone} onChange={handleChange} className="input" style={{ paddingLeft: 36 }} placeholder="(00) 00000-0000" />

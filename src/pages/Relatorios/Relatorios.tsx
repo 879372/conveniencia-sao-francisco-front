@@ -48,21 +48,9 @@ export default function Relatorios() {
   const [vendaParaCancelar, setVendaParaCancelar] = useState<Venda | null>(null);
   const queryClient = useQueryClient();
 
-  // Filtros de Data
   const now = new Date();
-  const currentMonthStr = now.toLocaleDateString('sv-SE').slice(0, 7); // YYYY-MM
-  const [mesInicio, setMesInicio] = useState(currentMonthStr);
-  const [mesFim, setMesFim] = useState(currentMonthStr);
-
-  const getStartEndDate = () => {
-    const start = `${mesInicio}-01`;
-    const [year, month] = mesFim.split('-').map(Number);
-    const lastDay = new Date(year, month, 0).getDate();
-    const end = `${mesFim}-${String(lastDay).padStart(2, '0')}`;
-    return { start, end };
-  };
-
-  const { start, end } = getStartEndDate();
+  const [start, setStart] = useState(new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('sv-SE'));
+  const [end, setEnd] = useState(now.toLocaleDateString('sv-SE'));
 
   const cancelarVendaMutation = useMutation({
     mutationFn: ({ id, justificativa }: { id: number; justificativa?: string }) =>
@@ -126,21 +114,21 @@ export default function Relatorios() {
           <div className="reports-date-field" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>DE:</span>
             <input
-              type="month"
+              type="date"
               className="input"
               style={{ width: 150, height: 38, fontSize: '0.85rem' }}
-              value={mesInicio}
-              onChange={e => setMesInicio(e.target.value)}
+              value={start}
+              onChange={e => setStart(e.target.value)}
             />
           </div>
           <div className="reports-date-field" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>ATÉ:</span>
             <input
-              type="month"
+              type="date"
               className="input"
               style={{ width: 150, height: 38, fontSize: '0.85rem' }}
-              value={mesFim}
-              onChange={e => setMesFim(e.target.value)}
+              value={end}
+              onChange={e => setEnd(e.target.value)}
             />
           </div>
           <div className="tabs" style={{ display: 'flex', background: 'var(--bg-body)', padding: 4, borderRadius: 8, border: '1px solid var(--border)', marginLeft: 8 }}>
@@ -150,11 +138,11 @@ export default function Relatorios() {
         </div>
 
         <style>{`
-          input[type="month"]::-webkit-calendar-picker-indicator {
+          input[type="date"]::-webkit-calendar-picker-indicator {
             opacity: 0.65;
             cursor: pointer;
           }
-          input[type="month"]::-webkit-calendar-picker-indicator:hover {
+          input[type="date"]::-webkit-calendar-picker-indicator:hover {
             opacity: 1;
           }
         `}</style>
@@ -166,23 +154,23 @@ export default function Relatorios() {
         ) : (
           <>
             <div className="kpi-card blue">
-              <div className="kpi-label">Faturamento Mensal</div>
+              <div className="kpi-label">Faturamento no Período</div>
               <div className="kpi-value">R$ {stats?.faturamento_mes?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
               <div className="kpi-sub">total bruto no período</div>
             </div>
             <div className="kpi-card green">
-              <div className="kpi-label">Lucro Bruto Est.</div>
-              <div className="kpi-value">R$ {lucroTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-              <div className="kpi-sub">baseado no preço de compra informado</div>
+              <div className="kpi-label">Ticket Médio</div>
+              <div className="kpi-value">R$ {Number(stats?.ticket_medio || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+              <div className="kpi-sub">média por venda finalizada</div>
             </div>
             <div className="kpi-card purple">
-              <div className="kpi-label">Valor de Compras</div>
-              <div className="kpi-value">R$ {stats?.compras_mes?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-              <div className="kpi-sub">compras registradas no mês</div>
+              <div className="kpi-label">Descontos Concedidos</div>
+              <div className="kpi-value">R$ {Number(stats?.total_descontos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+              <div className="kpi-sub">total no período selecionado</div>
             </div>
             <div className="kpi-card yellow">
               <div className="kpi-label">Volume de Vendas</div>
-              <div className="kpi-value">{vendas.length}</div>
+              <div className="kpi-value">{stats?.quantidade_vendas_periodo ?? vendas.length}</div>
               <div className="kpi-sub">operações finalizadas</div>
             </div>
           </>
