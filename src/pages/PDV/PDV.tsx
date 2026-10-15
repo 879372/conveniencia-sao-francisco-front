@@ -39,6 +39,34 @@ const FORMAS_PAGAMENTO = [
   { key: 'FIADO', label: 'Fiado', icon: ClipboardList, color: 'var(--accent-red)' },
 ];
 
+// Exportado somente para os testes unitários dos cálculos monetários.
+// eslint-disable-next-line react-refresh/only-export-components
+export const toCents = (value: number) => Math.round((value + Number.EPSILON) * 100);
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const maxDiscountInput = (
+  totalCents: number,
+  type: 'VALOR' | 'PERCENTUAL',
+) => {
+  const maxDiscountCents = Math.max(0, totalCents - 1);
+  if (type === 'VALOR') return maxDiscountCents / 100;
+  if (totalCents <= 0) return 0;
+  return Math.floor((maxDiscountCents / totalCents) * 10_000) / 100;
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const discountInCents = (
+  totalCents: number,
+  discount: number,
+  type: 'VALOR' | 'PERCENTUAL',
+) => {
+  const safeDiscount = Math.min(Math.max(discount, 0), maxDiscountInput(totalCents, type));
+  const calculated = type === 'VALOR'
+    ? toCents(safeDiscount)
+    : Math.round(totalCents * (safeDiscount / 100));
+  return Math.min(calculated, Math.max(0, totalCents - 1));
+};
+
 import { toast } from 'sonner';
 
 export default function PDV() {
@@ -70,6 +98,7 @@ export default function PDV() {
   const [modalCancelarVendaOpen, setModalCancelarVendaOpen] = useState(false);
   const [desconto, setDesconto] = useState(0);
   const [tipoDesconto, setTipoDesconto] = useState<'VALOR' | 'PERCENTUAL'>('VALOR');
+  const [showDesconto, setShowDesconto] = useState(false);
 
   // Impressão de comprovante
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -110,12 +139,34 @@ export default function PDV() {
   const valorPagoRef = useRef<HTMLInputElement>(null);
 
   // Totais
-  const total = carrinho.reduce((acc, item) => acc + item.subtotal, 0);
-  const valorDescontoReal = tipoDesconto === 'VALOR' ? desconto : (total * (desconto / 100));
-  const totalLiquido = Math.max(0, total - valorDescontoReal);
-  const totalJaPago = pagamentosRealizados.reduce((acc, p) => acc + p.valor, 0);
-  const valorRestante = Math.max(0, totalLiquido - totalJaPago);
-  const troco = Math.max(0, totalJaPago - totalLiquido);
+  const totalCentavos = carrinho.reduce((acc, item) => acc + toCents(item.subtotal), 0);
+  const descontoCentavos = discountInCents(totalCentavos, desconto, tipoDesconto);
+  const totalLiquidoCentavos = Math.max(0, totalCentavos - descontoCentavos);
+  const totalPagoCentavos = pagamentosRealizados.reduce((acc, p) => acc + toCents(p.valor), 0);
+  const valorRestanteCentavos = Math.max(0, totalLiquidoCentavos - totalPagoCentavos);
+  const trocoCentavos = Math.max(0, totalPagoCentavos - totalLiquidoCentavos);
+  const total = totalCentavos / 100;
+  const valorDescontoReal = descontoCentavos / 100;
+  const totalLiquido = totalLiquidoCentavos / 100;
+  const totalJaPago = totalPagoCentavos / 100;
+  const valorRestante = valorRestanteCentavos / 100;
+  const troco = trocoCentavos / 100;
+
+  const abrirPagamento = useCallback(() => {
+    if (carrinho.length === 0) return;
+    setShowDesconto(desconto > 0);
+    setShowPagamento(true);
+    setValorPago(valorRestante.toFixed(2));
+    setTimeout(() => valorPagoRef.current?.focus(), 100);
+  }, [carrinho.length, desconto, valorRestante]);
+
+  useEffect(() => {
+    if (showPagamento) {
+      // Mantém apenas a sugestão do próximo pagamento sincronizada; os
+      // pagamentos já adicionados nunca são alterados por total/desconto.
+      setValorPago(valorRestante.toFixed(2));
+    }
+  }, [showPagamento, valorRestante]);
 
   // 1. Check Active Session
   const { data: sessao, isLoading: loadingSessao } = useQuery<Sessao>({
@@ -232,7 +283,7 @@ export default function PDV() {
       const respVenda = await api.post(`/vendas/${venda?.id}/finalizar/`, {
         pagamentos: pagamentosRealizados,
         cliente: clienteId,
-        desconto: valorDescontoReal
+        desconto: valorDescontoReal.toFixed(2)
       });
 
       // Salva os dados da venda finalizada para o compartilhamento
@@ -272,6 +323,7 @@ export default function PDV() {
       setShowClienteDropdown(false);
       setDesconto(0);
       setTipoDesconto('VALOR');
+      setShowDesconto(false);
       setTimeout(() => buscaRef.current?.focus(), 100);
     },
     onError: (err: any) => {
@@ -521,28 +573,65 @@ export default function PDV() {
 
   const handleAddPagamento = () => {
     const valor = parseFloat(valorPago || '0');
-    if (valor <= 0) return;
-    setPagamentosRealizados(prev => [...prev, { forma: formaPagto, valor }]);
+    const valorCentavos = Number.isFinite(valor) ? toCents(valor) : 0;
+    if (valorCentavos <= 0) {
+      toast.error('Informe um valor de pagamento válido.');
+      return;
+    }
+    setPagamentosRealizados(prev => [
+      ...prev,
+      { forma: formaPagto, valor: valorCentavos / 100 },
+    ]);
     setValorPago('');
     valorPagoRef.current?.focus();
   };
 
+  const handleDescontoChange = (rawValue: string) => {
+    const parsedValue = Number(rawValue);
+    if (!Number.isFinite(parsedValue)) {
+      setDesconto(0);
+      return;
+    }
+    const maxValue = maxDiscountInput(totalCentavos, tipoDesconto);
+    setDesconto(Math.min(Math.max(parsedValue, 0), maxValue));
+  };
+
+  const handleTipoDescontoChange = (tipo: 'VALOR' | 'PERCENTUAL') => {
+    setTipoDesconto(tipo);
+    setDesconto(0);
+  };
+
   // Keyboard Shortcuts
   useEffect(() => {
+    const hasOpenModal = showPagamento
+      || showCashOp
+      || modalFecharCaixaOpen
+      || modalCancelarVendaOpen
+      || showPrintModal
+      || showEditModal;
+
     const handler = (e: KeyboardEvent) => {
+      if (hasOpenModal) return;
       if (e.key === 'F2') {
         e.preventDefault();
         if (carrinho.length > 0) {
-           setShowPagamento(true);
-           setValorPago(valorRestante.toFixed(2));
-           setTimeout(() => valorPagoRef.current?.focus(), 100);
+           abrirPagamento();
         }
       }
       if (e.key === 'F3') { e.preventDefault(); setActiveTab('search'); buscaRef.current?.focus(); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [carrinho, valorRestante]);
+  }, [
+    abrirPagamento,
+    carrinho.length,
+    modalCancelarVendaOpen,
+    modalFecharCaixaOpen,
+    showCashOp,
+    showEditModal,
+    showPagamento,
+    showPrintModal,
+  ]);
 
   if (loadingSessao) return <div className="loading">Iniciando terminal de venda...</div>;
 
@@ -587,7 +676,6 @@ export default function PDV() {
       {/* HEADER */}
       <header className="pdv-header" style={{ padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ background: 'var(--accent)', color: 'white', padding: 4, borderRadius: 6 }}><Store size={16} /></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: '0.9rem', letterSpacing: '-0.5px' }} className="pdv-header-logo">
             <img src="/logo-conveniencia-sao-francisco.png" alt="" style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'cover' }} />
             São Francisco <span className="text-accent">PDV</span>
@@ -783,7 +871,7 @@ export default function PDV() {
                          if (isMobile && activeTab === 'search') {
                             setActiveTab('cart');
                          } else {
-                            setShowPagamento(true);
+                            abrirPagamento();
                          }
                        }}
                        disabled={carrinho.length === 0}
@@ -898,41 +986,67 @@ export default function PDV() {
                       )}
                    </div>
 
-                   <div className="form-group" style={{ marginBottom: 24 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <label className="form-label" htmlFor="payment-discount" style={{ fontSize: '0.75rem', color: 'var(--accent-red)', marginBottom: 0 }}>Desconto</label>
-                        <div style={{ display: 'flex', background: 'var(--bg-hover)', borderRadius: 20, padding: 2 }}>
+                   <div className="pdv-discount-section">
+                      <button
+                        type="button"
+                        className="btn btn-ghost pdv-discount-toggle"
+                        aria-expanded={showDesconto}
+                        aria-controls="payment-discount-controls"
+                        onClick={() => {
+                          if (showDesconto) setDesconto(0);
+                          setShowDesconto(current => !current);
+                        }}
+                      >
+                        {showDesconto ? <Trash2 size={18} /> : <Plus size={18} />}
+                        {showDesconto ? 'Remover desconto' : 'Adicionar desconto'}
+                      </button>
+                      {showDesconto && (
+                        <div id="payment-discount-controls" className="pdv-discount-controls">
+                          <div className="pdv-discount-header">
+                            <label className="form-label" htmlFor="payment-discount">Desconto</label>
+                          </div>
+                          <div className="pdv-discount-row">
+                            <div className="pdv-discount-type" role="group" aria-label="Tipo de desconto">
                            <button
                              type="button"
                              className={`btn btn-xs ${tipoDesconto === 'VALOR' ? 'btn-primary' : ''}`}
                              aria-pressed={tipoDesconto === 'VALOR'}
-                             onClick={() => setTipoDesconto('VALOR')}
-                             style={{ borderRadius: 18, padding: '2px 8px', height: 24, fontSize: '0.65rem', border: 'none' }}
+                             onClick={() => handleTipoDescontoChange('VALOR')}
                            >R$</button>
                            <button
                              type="button"
                              className={`btn btn-xs ${tipoDesconto === 'PERCENTUAL' ? 'btn-primary' : ''}`}
                              aria-pressed={tipoDesconto === 'PERCENTUAL'}
-                             onClick={() => setTipoDesconto('PERCENTUAL')}
-                             style={{ borderRadius: 18, padding: '2px 8px', height: 24, fontSize: '0.65rem', border: 'none' }}
+                             onClick={() => handleTipoDescontoChange('PERCENTUAL')}
                            >%</button>
+                            </div>
+                            <input
+                              id="payment-discount"
+                              className="input pdv-discount-input"
+                              type="number"
+                              inputMode="decimal"
+                              min="0"
+                              max={maxDiscountInput(totalCentavos, tipoDesconto)}
+                              step="0.01"
+                              aria-describedby="payment-discount-limit"
+                              placeholder={tipoDesconto === 'VALOR' ? '0,00' : '0%'}
+                              value={desconto || ''}
+                              onChange={e => handleDescontoChange(e.target.value)}
+                            />
+                          </div>
+                          <span id="payment-discount-limit" className="field-hint">
+                            Máximo: {tipoDesconto === 'PERCENTUAL'
+                              ? `${maxDiscountInput(totalCentavos, tipoDesconto).toFixed(2)}%`
+                              : `R$ ${maxDiscountInput(totalCentavos, tipoDesconto).toFixed(2)}`}
+                            {' '}— o total mínimo da venda é R$ 0,01.
+                          </span>
                         </div>
-                      </div>
-                      <input
-                        id="payment-discount"
-                        className="input"
-                        type="number"
-                        step="0.01"
-                        placeholder={tipoDesconto === 'VALOR' ? '0,00' : '0%'}
-                        style={{ height: 50, fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-red)' }}
-                        value={desconto || ''}
-                        onChange={e => setDesconto(parseFloat(e.target.value) || 0)}
-                      />
+                      )}
                    </div>
 
-                   <div className="form-group" style={{ marginBottom: 0 }}>
-                      <span id="payment-method-label" className="form-label" style={{ fontSize: '0.75rem' }}>Forma de Pagamento</span>
-                      <div role="group" aria-labelledby="payment-method-label" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                   <div className="form-group pdv-payment-method-section">
+                      <span id="payment-method-label" className="form-label">Forma de pagamento</span>
+                      <div role="group" aria-labelledby="payment-method-label" className="pdv-payment-methods">
                          {FORMAS_PAGAMENTO.map(f => (
                            <button
                              key={f.key}
@@ -940,36 +1054,32 @@ export default function PDV() {
                              className="payment-method-button"
                              aria-pressed={formaPagto === f.key}
                              onClick={() => setFormaPagto(f.key)}
-                             style={{
-                               display: 'flex', alignItems: 'center', gap: 6, padding: '10px 8px', borderRadius: 8, border: '1px solid var(--border)',
-                               background: formaPagto === f.key ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                               borderColor: formaPagto === f.key ? 'var(--accent)' : 'var(--border)',
-                               color: formaPagto === f.key ? 'var(--accent)' : 'var(--text-primary)',
-                               cursor: 'pointer', fontWeight: 700, fontSize: '0.75rem'
-                             }}
                             >
-                             <f.icon size={14} />
+                             <f.icon size={22} />
                              {f.label}
                            </button>
                          ))}
                       </div>
                    </div>
 
-                   <div className="form-group">
-                      <label className="form-label" htmlFor="payment-value" style={{ fontSize: '0.75rem' }}>Valor a Receber</label>
-                      <div style={{ display: 'flex', gap: 10 }}>
+                   <div className="form-group pdv-payment-value-section">
+                      <label className="form-label" htmlFor="payment-value">Valor a receber</label>
+                      <div className="pdv-payment-value-row">
                          <input
                            id="payment-value"
                            ref={valorPagoRef}
                            className="input"
                            type="number"
+                           inputMode="decimal"
+                           min="0.01"
                            step="0.01"
                            value={valorPago}
                            onChange={e => setValorPago(e.target.value)}
                            onKeyDown={e => e.key === 'Enter' && handleAddPagamento()}
-                           style={{ height: 48, fontSize: '1.2rem', fontWeight: 800, textAlign: 'center' }}
                          />
-                         <button className="btn btn-primary" onClick={handleAddPagamento} style={{ padding: '0 16px' }}>OK</button>
+                         <button type="button" className="btn btn-primary" onClick={handleAddPagamento}>
+                           <Plus size={20} /> Adicionar pagamento
+                         </button>
                       </div>
                    </div>
 
@@ -1028,7 +1138,7 @@ export default function PDV() {
             <div className={`pdv-payment-actions${isMobile ? ' mobile' : ''}`}>
                <button className="btn btn-primary" style={{ flex: 1, height: 50, fontSize: '1rem', fontWeight: 800, background: 'var(--accent-green)' }}
                  onClick={() => finalizarVendaMutation.mutate()}
-                 disabled={totalJaPago < totalLiquido - 0.05 || finalizarVendaMutation.isPending}
+                 disabled={pagamentosRealizados.length === 0 || totalPagoCentavos < totalLiquidoCentavos || finalizarVendaMutation.isPending}
                >
                   <CheckCircle2 size={20} />
                   CONCLUIR VENDA

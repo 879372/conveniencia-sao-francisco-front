@@ -1135,6 +1135,7 @@ button, input, select, textarea {
 
 .pdv-search-column {
   flex: 1;
+  min-width: 0;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -1148,6 +1149,20 @@ button, input, select, textarea {
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1025px) {
+  .pdv-search-column {
+    flex: 0 0 65%;
+    width: 65%;
+  }
+
+  .pdv-cart-column {
+    flex: 0 0 35%;
+    width: 35%;
+  }
 }
 
 .pdv-mobile-nav {
@@ -1207,8 +1222,19 @@ button, input, select, textarea {
   }
 
   .pdv-header-logo {
-    display: none;
-    /* Esconde logo longa em mini screens */
+    display: flex;
+    min-width: 0;
+    max-width: 46vw;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 0.76rem !important;
+    gap: 6px !important;
+  }
+
+  .pdv-header-logo img {
+    width: 28px !important;
+    height: 28px !important;
+    flex: 0 0 28px;
   }
 }
 
@@ -1341,18 +1367,147 @@ button, input, select, textarea {
   min-width: 220px;
 }
 
+.pdv-payment-method-section,
+.pdv-payment-value-section {
+  margin-top: 24px;
+}
+
+.pdv-payment-method-section > .form-label,
+.pdv-payment-value-section > .form-label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.pdv-payment-methods {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pdv-payment-methods .payment-method-button {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.pdv-payment-methods .payment-method-button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--accent);
+}
+
+.pdv-payment-value-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.pdv-payment-value-row .input {
+  min-height: 68px;
+  font-size: 1.7rem;
+  font-weight: 900;
+  text-align: center;
+  border-width: 2px;
+  border-color: var(--accent);
+}
+
+.pdv-payment-value-row .btn {
+  min-height: 68px;
+  padding-inline: 22px;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.pdv-discount-section {
+  margin: 18px 0;
+}
+
+.pdv-discount-toggle {
+  min-height: 44px;
+  color: var(--accent-red);
+}
+
+.pdv-discount-controls {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-primary);
+}
+
+.pdv-discount-header,
+.pdv-discount-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pdv-discount-header .form-label {
+  margin: 0;
+  color: var(--accent-red);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.pdv-discount-type {
+  display: flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+}
+
+.pdv-discount-type .btn {
+  min-width: 52px;
+  min-height: 40px;
+  border: 0;
+}
+
+.pdv-discount-input {
+  min-height: 48px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--accent-red);
+}
+
 @media (max-width: 768px) {
   .pdv-payment-grid {
     flex-direction: column;
     gap: 16px;
-    /* Adiciona scroll interno para não cortar no mobile */
-    max-height: 60vh;
-    overflow-y: auto;
-    padding-right: 4px;
   }
 
   .pdv-payment-summary {
     min-width: 0;
+  }
+
+  .pdv-payment-methods {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pdv-payment-value-row {
+    grid-template-columns: 1fr;
+  }
+
+  .pdv-payment-value-row .btn {
+    width: 100%;
+  }
+
+  .pdv-discount-header,
+  .pdv-discount-row {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .hide-mobile {
@@ -1545,10 +1700,7 @@ button, input, select, textarea {
     padding: 32px;
   }
 
-  .pdv-cart-column {
-    width: 480px;
-    padding: 32px;
-  }
+  .pdv-cart-column { padding: 32px; }
 
   .pdv-header {
     padding: 12px 24px !important;
