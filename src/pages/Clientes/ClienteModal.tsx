@@ -1,6 +1,7 @@
 import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import api from '../../lib/api';
 import { X, User, Phone, Mail, MapPin, Building2, CreditCard } from 'lucide-react';
+import Modal from '../../components/Modal';
 
 interface Cliente {
   id?: string;
@@ -91,23 +92,18 @@ export default function ClienteModal({ cliente, onClose, onSuccess }: ClienteMod
   };
 
   return (
-    <div className="modal-overlay" style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex',
-      alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-      backdropFilter: 'blur(4px)'
-    }}>
-      <div className="card animate-in modal-panel modal-panel-lg" style={{
-        width: '95%', maxWidth: '850px',
-        maxHeight: '90vh', overflowY: 'auto',
-        position: 'relative'
-      }}>
+    <Modal
+      onClose={onClose}
+      labelledBy="cliente-modal-title"
+      panelClassName="card animate-in modal-panel modal-panel-lg"
+      closeOnBackdrop={false}
+    >
         <div className="modal-titlebar">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ padding: 8, background: 'rgba(59, 130, 246, 0.1)', borderRadius: 8, color: 'var(--accent)' }}>
               <User size={20} />
             </div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+            <h2 id="cliente-modal-title" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
               {cliente ? 'Editar Cliente' : 'Cadastrar Novo Cliente'}
             </h2>
           </div>
@@ -121,47 +117,47 @@ export default function ClienteModal({ cliente, onClose, onSuccess }: ClienteMod
 
             {/* Dados Principais */}
             <div style={{ gridColumn: 'span 8' }}>
-              <label className="form-label">Nome Completo / Nome Fantasia *</label>
-              <input name="nome" value={formData.nome} onChange={handleChange} className="input" required placeholder="Ex: João da Silva ou Mercado Central" />
+              <label className="form-label" htmlFor="cliente-nome">Nome Completo / Nome Fantasia *</label>
+              <input id="cliente-nome" name="nome" value={formData.nome} onChange={handleChange} className="input" required placeholder="Ex: João da Silva ou Mercado Central" />
             </div>
 
             <div style={{ gridColumn: 'span 4' }}>
-              <label className="form-label">Tipo</label>
-              <select name="pessoa" value={formData.pessoa} onChange={handleChange} className="input">
+              <label className="form-label" htmlFor="cliente-tipo">Tipo</label>
+              <select id="cliente-tipo" name="pessoa" value={formData.pessoa} onChange={handleChange} className="input">
                 <option value="F">Pessoa Física</option>
                 <option value="J">Pessoa Jurídica</option>
               </select>
             </div>
 
             <div style={{ gridColumn: 'span 6' }}>
-              <label className="form-label">CPF / CNPJ</label>
+              <label className="form-label" htmlFor="cliente-documento">CPF / CNPJ</label>
               <div style={{ position: 'relative' }}>
                 <CreditCard size={16} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
-                <input name="cpf_cnpj" value={formData.cpf_cnpj} onChange={handleChange} className="input" style={{ paddingLeft: 36 }} placeholder="000.000.000-00" />
+                <input id="cliente-documento" name="cpf_cnpj" value={formData.cpf_cnpj} onChange={handleChange} className="input" style={{ paddingLeft: 36 }} placeholder="000.000.000-00" />
               </div>
             </div>
 
             <div style={{ gridColumn: 'span 6' }}>
-              <label className="form-label">Razão Social (opcional)</label>
+              <label className="form-label" htmlFor="cliente-razao-social">Razão Social (opcional)</label>
               <div style={{ position: 'relative' }}>
                 <Building2 size={16} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
-                <input name="razao_social" value={formData.razao_social} onChange={handleChange} className="input" style={{ paddingLeft: 36 }} placeholder="Nome empresarial" />
+                <input id="cliente-razao-social" name="razao_social" value={formData.razao_social} onChange={handleChange} className="input" style={{ paddingLeft: 36 }} placeholder="Nome empresarial" />
               </div>
             </div>
 
             <div style={{ gridColumn: 'span 6' }}>
-              <label className="form-label">Telefone</label>
+              <label className="form-label" htmlFor="cliente-telefone">Telefone</label>
               <div style={{ position: 'relative' }}>
                 <Phone size={16} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
-                <input name="telefone" value={formData.telefone} onChange={handleChange} className="input" style={{ paddingLeft: 36 }} placeholder="(00) 00000-0000" />
+                <input id="cliente-telefone" name="telefone" value={formData.telefone} onChange={handleChange} className="input" style={{ paddingLeft: 36 }} placeholder="(00) 00000-0000" />
               </div>
             </div>
 
             <div style={{ gridColumn: 'span 6' }}>
-              <label className="form-label">E-mail</label>
+              <label className="form-label" htmlFor="cliente-email">E-mail</label>
               <div style={{ position: 'relative' }}>
                 <Mail size={16} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
-                <input name="email" type="email" value={formData.email} onChange={handleChange} className="input" style={{ paddingLeft: 36 }} placeholder="cliente@email.com" />
+                <input id="cliente-email" name="email" type="email" value={formData.email} onChange={handleChange} className="input" style={{ paddingLeft: 36 }} placeholder="cliente@email.com" />
               </div>
             </div>
 
@@ -173,33 +169,33 @@ export default function ClienteModal({ cliente, onClose, onSuccess }: ClienteMod
             </div>
 
             <div style={{ gridColumn: 'span 3' }}>
-              <label className="form-label">CEP</label>
-              <input name="cep" value={formData.cep} onChange={handleChange} className="input" placeholder="00000-000" />
+              <label className="form-label" htmlFor="cliente-cep">CEP</label>
+              <input id="cliente-cep" name="cep" value={formData.cep} onChange={handleChange} className="input" placeholder="00000-000" />
             </div>
 
             <div style={{ gridColumn: 'span 9' }}>
-              <label className="form-label">Logradouro / Endereço</label>
-              <input name="endereco" value={formData.endereco} onChange={handleChange} className="input" placeholder="Rua, Av, Travessa..." />
+              <label className="form-label" htmlFor="cliente-endereco">Logradouro / Endereço</label>
+              <input id="cliente-endereco" name="endereco" value={formData.endereco} onChange={handleChange} className="input" placeholder="Rua, Av, Travessa..." />
             </div>
 
             <div style={{ gridColumn: 'span 3' }}>
-              <label className="form-label">Número</label>
-              <input name="numero" value={formData.numero} onChange={handleChange} className="input" />
+              <label className="form-label" htmlFor="cliente-numero">Número</label>
+              <input id="cliente-numero" name="numero" value={formData.numero} onChange={handleChange} className="input" />
             </div>
 
             <div style={{ gridColumn: 'span 3' }}>
-              <label className="form-label">Bairro</label>
-              <input name="bairro" value={formData.bairro} onChange={handleChange} className="input" />
+              <label className="form-label" htmlFor="cliente-bairro">Bairro</label>
+              <input id="cliente-bairro" name="bairro" value={formData.bairro} onChange={handleChange} className="input" />
             </div>
 
             <div style={{ gridColumn: 'span 4' }}>
-              <label className="form-label">Cidade</label>
-              <input name="cidade" value={formData.cidade} onChange={handleChange} className="input" />
+              <label className="form-label" htmlFor="cliente-cidade">Cidade</label>
+              <input id="cliente-cidade" name="cidade" value={formData.cidade} onChange={handleChange} className="input" />
             </div>
 
             <div style={{ gridColumn: 'span 2' }}>
-              <label className="form-label">UF</label>
-              <input name="uf" value={formData.uf} onChange={handleChange} className="input" maxLength={2} style={{ textTransform: 'uppercase' }} />
+              <label className="form-label" htmlFor="cliente-uf">UF</label>
+              <input id="cliente-uf" name="uf" value={formData.uf} onChange={handleChange} className="input" maxLength={2} style={{ textTransform: 'uppercase' }} />
             </div>
 
           </div>
@@ -213,7 +209,6 @@ export default function ClienteModal({ cliente, onClose, onSuccess }: ClienteMod
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

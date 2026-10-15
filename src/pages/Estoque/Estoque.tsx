@@ -4,6 +4,7 @@ import { AlertTriangle, Boxes, History, Pencil, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../lib/api';
 import KardexModal from '../Produtos/KardexModal';
+import Modal from '../../components/Modal';
 
 interface ProdutoEstoque {
   id: string | number;
@@ -141,11 +142,10 @@ export default function Estoque() {
       </div>
 
       {produto && (
-        <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && setProduto(null)}>
-          <div className="modal-content modal-panel-sm">
+        <Modal onClose={() => setProduto(null)} labelledBy="stock-adjustment-title" panelClassName="modal-content modal-panel-sm">
             <div className="modal-header">
               <div>
-                <h2 className="modal-title">Ajustar estoque</h2>
+                <h2 id="stock-adjustment-title" className="modal-title">Ajustar estoque</h2>
                 <p className="modal-subtitle">{produto.nome}</p>
               </div>
               <button className="btn-icon" onClick={() => setProduto(null)} aria-label="Fechar"><X size={20} /></button>
@@ -161,8 +161,7 @@ export default function Estoque() {
                 <button type="submit" className="btn btn-primary" disabled={ajusteMutation.isPending}>Salvar ajuste</button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {kardex && <KardexModal produtoId={kardex.id} produtoNome={kardex.nome} onClose={() => setKardex(null)} />}

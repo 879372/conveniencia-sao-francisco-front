@@ -7,14 +7,17 @@
   --bg-card: #ffffff;
   --bg-hover: #f3ead9;
   --border: #e5d9c5;
-  --accent: #a96d17;
+  --accent: #8f5b12;
   --accent-hover: #86520c;
   --accent-green: #16815f;
   --accent-red: #c83f3f;
   --accent-yellow: #c47b13;
   --text-primary: #241b12;
   --text-secondary: #635548;
-  --text-muted: #8b7a69;
+  --text-muted: #746354;
+  --card-bg: #ffffff;
+  --bg-body: #f7f4ed;
+  --primary: #8f5b12;
   --sidebar-width: 240px;
 }
 
@@ -373,9 +376,10 @@ button, input, select, textarea {
 }
 
 .btn-icon {
-  width: 40px;
-  min-width: 40px;
-  height: 40px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
   padding: 0;
   border-radius: 10px;
   display: inline-flex;
@@ -477,6 +481,17 @@ button, input, select, textarea {
   font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 6px;
+}
+
+.form-error {
+  margin: -8px 0 18px;
+  padding: 10px 12px;
+  border: 1px solid rgba(200, 63, 63, 0.35);
+  border-radius: 8px;
+  background: rgba(200, 63, 63, 0.08);
+  color: #9f2929;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 /* ========================
@@ -816,6 +831,10 @@ button, input, select, textarea {
   .kpi-value {
     font-size: 1.4rem;
   }
+
+  .dashboard-main-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ========================
@@ -897,15 +916,6 @@ button, input, select, textarea {
   .login-card {
     padding: 28px 20px;
     border-radius: 16px;
-  }
-
-  /* Override de grids inline que quebram o layout no mobile */
-  [style*="display: grid"] {
-    grid-template-columns: 1fr !important;
-  }
-
-  [style*="display: grid"] > [style*="grid-column"] {
-    grid-column: 1 / -1 !important;
   }
 
   .form-grid-12 > * {
@@ -1064,9 +1074,57 @@ button, input, select, textarea {
 .pdv-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   background: var(--bg-primary);
   overflow: hidden;
+}
+
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.pdv-header-icon-button,
+.pdv-item-action {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.pdv-item-action.danger {
+  color: var(--accent-red);
+}
+
+.pdv-item-action svg {
+  width: 20px;
+  height: 20px;
+}
+
+.payment-method-button {
+  min-height: 44px;
+}
+
+.pdv-payment-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.pdv-payment-actions.mobile {
+  flex-direction: column;
 }
 
 .pdv-body {
@@ -1097,6 +1155,10 @@ button, input, select, textarea {
 }
 
 @media (max-width: 1024px) {
+  .dashboard-main-grid {
+    grid-template-columns: 1fr;
+  }
+
   .pdv-cart-column {
     width: 320px;
     padding: 16px;
@@ -1130,7 +1192,7 @@ button, input, select, textarea {
     display: flex;
     background: var(--bg-secondary);
     border-top: 1px solid var(--border);
-    padding: 10px;
+    padding: 10px 10px max(10px, env(safe-area-inset-bottom));
     gap: 10px;
   }
 
@@ -1141,7 +1203,7 @@ button, input, select, textarea {
   }
 
   .pdv-header {
-    padding: 10px 16px !important;
+    padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left)) !important;
   }
 
   .pdv-header-logo {
@@ -1186,6 +1248,27 @@ button, input, select, textarea {
   z-index: 9999;
   backdrop-filter: blur(4px);
   padding: 24px;
+}
+
+.modal-overlay-top {
+  z-index: 2000;
+}
+
+.modal-overlay-raised {
+  z-index: 1100;
+}
+
+.pdv-payment-overlay {
+  background-color: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+.modal-text-center {
+  text-align: center;
+}
+
+.pdv-print-modal {
+  padding: 48px;
 }
 
 .modal-content {
@@ -1331,6 +1414,7 @@ button, input, select, textarea {
 .pdv-payment-modal { padding: 34px !important; max-height: 94vh !important; overflow-y: auto; }
 .pdv-payment-modal .pdv-payment-grid { gap: 32px; }
 .pdv-payment-modal .pdv-payment-summary { min-width: 300px; padding: 24px; }
+.pdv-payment-modal .btn-xs { min-height: 44px !important; height: 44px !important; }
 
 @media (max-width: 1024px) {
   .finance-kpis { grid-template-columns: repeat(2, 1fr); }
@@ -1413,6 +1497,22 @@ button, input, select, textarea {
 
 .animate-in {
   animation: slide-up 0.4s ease-out;
+}
+
+:where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+  outline: 3px solid rgba(143, 91, 18, 0.38);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @keyframes slide-up {

@@ -2,6 +2,7 @@ import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { X, Package, DollarSign, Tag, Plus } from 'lucide-react';
+import Modal from '../../components/Modal';
 
 interface Grupo {
   id: string | number;
@@ -156,23 +157,18 @@ export default function ProdutoModal({ produto, onClose, onSuccess }: ProdutoMod
   };
 
   return (
-    <div className="modal-overlay" style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex',
-      alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-      backdropFilter: 'blur(4px)'
-    }}>
-      <div className="card animate-in modal-panel modal-panel-lg" style={{
-        width: '95%', maxWidth: '850px',
-        maxHeight: '90vh', overflowY: 'auto',
-        position: 'relative'
-      }}>
+    <Modal
+      onClose={onClose}
+      labelledBy="produto-modal-title"
+      panelClassName="card animate-in modal-panel modal-panel-lg"
+      closeOnBackdrop={false}
+    >
         <div className="modal-titlebar">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ padding: 8, background: 'rgba(59, 130, 246, 0.1)', borderRadius: 8, color: 'var(--accent)' }}>
               <Package size={20} />
             </div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+            <h2 id="produto-modal-title" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
               {produto ? 'Editar Produto' : 'Cadastrar Novo Produto'}
             </h2>
           </div>
@@ -186,13 +182,13 @@ export default function ProdutoModal({ produto, onClose, onSuccess }: ProdutoMod
 
             {/* Dados Principais */}
             <div style={{ gridColumn: 'span 8' }}>
-              <label className="form-label">Nome / Descrição do Produto</label>
-              <input name="nome" value={formData.nome} onChange={handleChange} className="input" required placeholder="Ex: Batatas Lavadas 1kg" />
+              <label className="form-label" htmlFor="produto-nome">Nome / Descrição do Produto</label>
+              <input id="produto-nome" name="nome" value={formData.nome} onChange={handleChange} className="input" required placeholder="Ex: Batatas Lavadas 1kg" />
             </div>
 
             <div style={{ gridColumn: 'span 4' }}>
-              <label className="form-label">Unidade</label>
-              <select name="unidade_medida" value={formData.unidade_medida} onChange={handleChange} className="input">
+              <label className="form-label" htmlFor="produto-unidade">Unidade</label>
+              <select id="produto-unidade" name="unidade_medida" value={formData.unidade_medida} onChange={handleChange} className="input">
                 <option value="UN">Unidade (UN)</option>
                 <option value="KG">Quilo (KG)</option>
                 <option value="LT">Litro (LT)</option>
@@ -203,23 +199,24 @@ export default function ProdutoModal({ produto, onClose, onSuccess }: ProdutoMod
 
 
             <div style={{ gridColumn: 'span 12' }}>
-              <label className="form-label">Código de Barras (EAN)</label>
-              <input name="codigo_barras" value={formData.codigo_barras} onChange={handleChange} className="input" placeholder="7890000000000" />
+              <label className="form-label" htmlFor="produto-codigo-barras">Código de Barras (EAN)</label>
+              <input id="produto-codigo-barras" name="codigo_barras" value={formData.codigo_barras} onChange={handleChange} className="input" placeholder="7890000000000" />
             </div>
 
             <div style={{ gridColumn: 'span 3' }}>
-              <label className="form-label">Preço de Compra (R$)</label>
+              <label className="form-label" htmlFor="produto-preco-compra">Preço de Compra (R$)</label>
               <div style={{ position: 'relative' }}>
                 <DollarSign size={16} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
-                <input name="preco_compra" type="number" step="0.01" value={formData.preco_compra} onChange={handleChange} className="input" style={{ paddingLeft: 36 }} />
+                <input id="produto-preco-compra" name="preco_compra" type="number" step="0.01" value={formData.preco_compra} onChange={handleChange} className="input" style={{ paddingLeft: 36 }} />
               </div>
             </div>
 
             <div style={{ gridColumn: 'span 3' }}>
-              <label className="form-label">Margem (%)</label>
+              <label className="form-label" htmlFor="produto-margem">Margem (%)</label>
               <div style={{ position: 'relative' }}>
                 <Tag size={16} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
                 <input
+                  id="produto-margem"
                   name="margem"
                   type="number"
                   value={margem}
@@ -240,18 +237,19 @@ export default function ProdutoModal({ produto, onClose, onSuccess }: ProdutoMod
             </div>
 
             <div style={{ gridColumn: 'span 3' }}>
-              <label className="form-label">Preço de Venda (R$)</label>
+              <label className="form-label" htmlFor="produto-preco-venda">Preço de Venda (R$)</label>
               <div style={{ position: 'relative' }}>
                 <DollarSign size={16} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
-                <input name="preco_venda" type="number" step="0.01" value={formData.preco_venda} onChange={handleChange} className="input" style={{ paddingLeft: 36 }} required />
+                <input id="produto-preco-venda" name="preco_venda" type="number" step="0.01" value={formData.preco_venda} onChange={handleChange} className="input" style={{ paddingLeft: 36 }} required />
               </div>
             </div>
 
             <div style={{ gridColumn: 'span 3' }}>
-              <label className="form-label">Estoque {produto ? 'Atual' : 'Inicial'}</label>
+              <label className="form-label" htmlFor="produto-estoque">Estoque {produto ? 'Atual' : 'Inicial'}</label>
               <div style={{ position: 'relative' }}>
                 <Package size={16} style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} />
                 <input
+                  id="produto-estoque"
                   name="estoque_inicial"
                   type="number"
                   step="0.001"
@@ -266,7 +264,7 @@ export default function ProdutoModal({ produto, onClose, onSuccess }: ProdutoMod
 
             <div style={{ gridColumn: 'span 6' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <label className="form-label" style={{ marginBottom: 0 }}>Grupo / Categoria</label>
+                <label className="form-label" htmlFor={showAddGrupo ? 'produto-novo-grupo' : 'produto-grupo'} style={{ marginBottom: 0 }}>Grupo / Categoria</label>
                 <button
                   type="button"
                   className="btn btn-sm btn-ghost"
@@ -281,6 +279,7 @@ export default function ProdutoModal({ produto, onClose, onSuccess }: ProdutoMod
               {showAddGrupo ? (
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input
+                    id="produto-novo-grupo"
                     className="input"
                     value={novoGrupo}
                     onChange={e => setNovoGrupo(e.target.value)}
@@ -298,6 +297,7 @@ export default function ProdutoModal({ produto, onClose, onSuccess }: ProdutoMod
                 </div>
               ) : (
                 <select
+                  id="produto-grupo"
                   name="grupo"
                   value={formData.grupo}
                   onChange={handleChange}
@@ -312,9 +312,9 @@ export default function ProdutoModal({ produto, onClose, onSuccess }: ProdutoMod
             </div>
 
             <div style={{ gridColumn: 'span 6' }}>
-              <label className="form-label">Status</label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, height: 42, cursor: 'pointer' }}>
-                <input type="checkbox" name="ativo" checked={formData.ativo} onChange={handleChange} style={{ width: 18, height: 18 }} />
+              <span className="form-label">Status</span>
+              <label htmlFor="produto-ativo" style={{ display: 'flex', alignItems: 'center', gap: 10, height: 42, cursor: 'pointer' }}>
+                <input id="produto-ativo" type="checkbox" name="ativo" checked={formData.ativo} onChange={handleChange} style={{ width: 18, height: 18 }} />
                 <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Produto Ativo</span>
               </label>
             </div>
@@ -330,7 +330,6 @@ export default function ProdutoModal({ produto, onClose, onSuccess }: ProdutoMod
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

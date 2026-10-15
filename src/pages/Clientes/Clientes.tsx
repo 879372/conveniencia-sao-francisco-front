@@ -12,7 +12,6 @@ import {
   Edit3,
   ToggleLeft,
   ToggleRight,
-  User,
   Phone,
   CreditCard,
   MapPin

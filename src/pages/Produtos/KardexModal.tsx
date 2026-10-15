@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { X, ArrowUpCircle, ArrowDownCircle, History } from 'lucide-react';
+import Modal from '../../components/Modal';
 
 interface Movimentacao {
   id: number;
@@ -43,19 +44,24 @@ export default function KardexModal({ produtoId, produtoNome, onClose }: KardexM
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: '800px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+    <Modal
+      onClose={onClose}
+      labelledBy="kardex-modal-title"
+      describedBy="kardex-product-name"
+      panelClassName="modal-content"
+      panelStyle={{ maxWidth: 800, width: '95%' }}
+    >
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div className="icon-box icon-box-primary">
               <History size={20} />
             </div>
             <div>
-              <h2 className="modal-title">Histórico de Estoque (Kardex)</h2>
-              <p className="modal-subtitle">{produtoNome}</p>
+              <h2 id="kardex-modal-title" className="modal-title">Histórico de Estoque (Kardex)</h2>
+              <p id="kardex-product-name" className="modal-subtitle">{produtoNome}</p>
             </div>
           </div>
-          <button className="btn-close" onClick={onClose}>
+          <button className="btn-icon" onClick={onClose} aria-label="Fechar histórico de estoque">
             <X size={20} />
           </button>
         </div>
@@ -111,8 +117,6 @@ export default function KardexModal({ produtoId, produtoNome, onClose }: KardexM
         <div className="modal-footer">
           <button className="btn btn-ghost" onClick={onClose}>Fechar</button>
         </div>
-      </div>
-
       <style>{`
         .icon-box {
           width: 40px;
@@ -127,6 +131,6 @@ export default function KardexModal({ produtoId, produtoNome, onClose }: KardexM
           color: var(--primary);
         }
       `}</style>
-    </div>
+    </Modal>
   );
 }

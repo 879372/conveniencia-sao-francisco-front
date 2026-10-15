@@ -4,6 +4,7 @@ import { Calendar, CheckCircle2, Pencil, Plus, Receipt, Search, Trash2, Trending
 import { toast } from 'sonner';
 import api from '../../lib/api';
 import ConfirmModal from '../../components/ConfirmModal';
+import Modal from '../../components/Modal';
 
 type Tipo = 'DESPESA' | 'RECEBER';
 interface Lancamento {
@@ -158,15 +159,15 @@ export default function Financeiro() {
         )}
       </div>
 
-      {modal && <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && closeModal()}><div className="modal-content modal-panel-sm">
-        <div className="modal-header"><div><h2 className="modal-title">{editing ? 'Editar' : 'Novo'} {modal === 'DESPESA' ? 'registro de despesa' : 'recebível'}</h2><p className="modal-subtitle">Preencha os dados do lançamento.</p></div><button className="btn-icon" onClick={closeModal}><X size={20} /></button></div>
+      {modal && <Modal onClose={closeModal} labelledBy="financial-entry-title" describedBy="financial-entry-description" panelClassName="modal-content modal-panel-sm">
+        <div className="modal-header"><div><h2 id="financial-entry-title" className="modal-title">{editing ? 'Editar' : 'Novo'} {modal === 'DESPESA' ? 'registro de despesa' : 'recebível'}</h2><p id="financial-entry-description" className="modal-subtitle">Preencha os dados do lançamento.</p></div><button className="btn-icon" onClick={closeModal} aria-label="Fechar lançamento financeiro"><X size={20} /></button></div>
         <form onSubmit={submit}><div className="form-group"><label className="form-label">Descrição *</label><input className="input" autoFocus required value={form.descricao} onChange={(event) => setForm((value) => ({ ...value, descricao: event.target.value }))} /></div>
           <div className="form-group"><label className="form-label">{modal === 'DESPESA' ? 'Fornecedor' : 'Cliente'}</label><input className="input" value={form.pessoa} onChange={(event) => setForm((value) => ({ ...value, pessoa: event.target.value }))} /></div>
           <div className="form-grid-2"><div className="form-group"><label className="form-label">Valor *</label><input className="input" type="number" min="0.01" step="0.01" required value={form.valor} onChange={(event) => setForm((value) => ({ ...value, valor: event.target.value }))} /></div><div className="form-group"><label className="form-label">{modal === 'DESPESA' ? 'Data da despesa' : 'Vencimento'} *</label><input className="input" type="date" required value={form.data} onChange={(event) => setForm((value) => ({ ...value, data: event.target.value }))} /></div></div>
           <div className="form-group"><label className="form-label">Observações</label><textarea className="input" rows={3} value={form.observacoes} onChange={(event) => setForm((value) => ({ ...value, observacoes: event.target.value }))} /></div>
           <div className="modal-footer"><button type="button" className="btn btn-ghost" onClick={closeModal}>Cancelar</button><button className="btn btn-primary" disabled={saveMutation.isPending}>{saveMutation.isPending ? 'Salvando...' : 'Salvar'}</button></div>
         </form>
-      </div></div>}
+      </Modal>}
 
       <ConfirmModal isOpen={Boolean(deleting)} title="Excluir lançamento" description={`Deseja excluir “${deleting?.descricao || ''}”?`} confirmLabel="Excluir" onConfirm={() => deleting && deleteMutation.mutate(deleting)} onClose={() => setDeleting(null)} isLoading={deleteMutation.isPending} />
     </div>

@@ -15,6 +15,7 @@ import { thermalPrinter } from '../../lib/thermalPrint';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import ConfirmModal from '../../components/ConfirmModal';
+import Modal from '../../components/Modal';
 
 interface VendaItem {
   id: number;
@@ -297,16 +298,21 @@ export default function Vendas() {
 
       {/* MODAL DE DETALHES */}
       {selectedVenda && (
-        <div className="modal-overlay" style={{ zIndex: 1000 }} onClick={() => setSelectedVenda(null)}>
-          <div className="card animate-in" style={{ width: '100%', maxWidth: 1000, padding: 0, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+        <Modal
+          onClose={() => setSelectedVenda(null)}
+          labelledBy="sale-details-title"
+          panelClassName="card animate-in"
+          panelStyle={{ width: '100%', maxWidth: 1000, padding: 0, overflow: 'hidden' }}
+          overlayStyle={{ zIndex: 1000 }}
+        >
             <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)' }}>
               <div style={{ flex: 1 }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 900 }}>Venda #{selectedVenda?.id ? String(selectedVenda.id).slice(-6).toUpperCase() : '---'}</h2>
+                <h2 id="sale-details-title" style={{ fontSize: '1.25rem', fontWeight: 900 }}>Venda #{selectedVenda?.id ? String(selectedVenda.id).slice(-6).toUpperCase() : '---'}</h2>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
                    {selectedVenda?.data ? new Date(selectedVenda.data).toLocaleString('pt-BR') : 'Data Indisponível'} · {selectedVenda?.cliente_nome || 'Consumidor Final'}
                 </div>
               </div>
-              <button onClick={() => setSelectedVenda(null)} className="btn btn-ghost" style={{ borderRadius: '50%', padding: 8 }}>
+              <button onClick={() => setSelectedVenda(null)} className="btn btn-ghost btn-icon" aria-label="Fechar detalhes da venda">
                 <X size={24} />
               </button>
             </div>
@@ -402,8 +408,7 @@ export default function Vendas() {
                 )}
                </div>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       <ConfirmModal

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Calendar, FileText, Pencil, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../lib/api';
+import Modal from '../../components/Modal';
 
 interface Compra {
   id: string;
@@ -136,10 +137,14 @@ export default function Compras() {
       </div>
 
       {modal && (
-        <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && closeModal()}>
-          <div className="modal-content modal-panel">
+        <Modal
+          onClose={closeModal}
+          labelledBy="purchase-modal-title"
+          describedBy="purchase-modal-description"
+          panelClassName="modal-content modal-panel"
+        >
             <div className="modal-header">
-              <div><h2 className="modal-title">{editing ? 'Editar compra' : 'Registrar compra'}</h2><p className="modal-subtitle">Este cadastro serve como histórico da entrada.</p></div>
+              <div><h2 id="purchase-modal-title" className="modal-title">{editing ? 'Editar compra' : 'Registrar compra'}</h2><p id="purchase-modal-description" className="modal-subtitle">Este cadastro serve como histórico da entrada.</p></div>
               <button className="btn-icon" onClick={closeModal} aria-label="Fechar"><X size={20} /></button>
             </div>
             <form onSubmit={submit}>
@@ -153,8 +158,7 @@ export default function Compras() {
               </div>
               <div className="modal-footer"><button type="button" className="btn btn-ghost" onClick={closeModal}>Cancelar</button><button type="submit" className="btn btn-primary" disabled={saveMutation.isPending}>{saveMutation.isPending ? 'Salvando...' : 'Salvar compra'}</button></div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

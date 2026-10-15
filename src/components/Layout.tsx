@@ -76,7 +76,8 @@ export default function Layout() {
             // Busca a última seção definida em itens anteriores
             let lastSection = '';
             for (let i = 0; i < index; i++) {
-              if (navItems[i].section) lastSection = navItems[i].section;
+              const section = navItems[i].section;
+              if (section) lastSection = section;
             }
 
             const isNewSection = item.section && item.section !== lastSection;

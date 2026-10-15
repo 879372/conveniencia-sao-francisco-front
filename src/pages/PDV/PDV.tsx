@@ -28,6 +28,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Produto, ItemCarrinho, Sessao, Venda, Pagamento } from './types';
 import CashOpsModal from './CashOpsModal';
 import ProdutoModal from '../Produtos/ProdutoModal';
+import Modal from '../../components/Modal';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 const FORMAS_PAGAMENTO = [
   { key: 'DINHEIRO', label: 'Dinheiro', icon: Banknote, color: 'var(--accent-green)' },
@@ -44,6 +46,7 @@ export default function PDV() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const resumeVendaId = searchParams.get('venda_id');
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [busca, setBusca] = useState('');
   const [resultados, setResultados] = useState<Produto[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -555,8 +558,9 @@ export default function PDV() {
             <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>Informe o fundo de reserva para iniciar o expediente.</p>
 
             <div className="form-group" style={{ marginBottom: 24 }}>
-                <label className="form-label">Fundo Inicial (R$)</label>
+                <label className="form-label" htmlFor="opening-balance">Fundo Inicial (R$)</label>
                 <input
+                  id="opening-balance"
                   className="input"
                   type="number"
                   step="0.01"
@@ -598,25 +602,25 @@ export default function PDV() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* Menu de Ações (Oculto em telas muito pequenas, ou em dropdown futuramente) */}
           <div className="pdv-actions-desktop" style={{ display: 'flex', gap: 4 }}>
-            <button className="btn btn-ghost btn-sm" style={{ padding: '6px 8px', color: 'var(--accent-yellow)' }} onClick={() => { setCashOpType('SANGRIA'); setShowCashOp(true); }}>
+            <button aria-label="Registrar sangria" className="btn btn-ghost btn-sm" style={{ padding: '6px 8px', color: 'var(--accent-yellow)' }} onClick={() => { setCashOpType('SANGRIA'); setShowCashOp(true); }}>
               <Minus size={14} />
               <span className="hide-mobile">Sangria</span>
             </button>
-            <button className="btn btn-ghost btn-sm" style={{ padding: '6px 8px', color: 'var(--accent-green)' }} onClick={() => { setCashOpType('SUPRIMENTO'); setShowCashOp(true); }}>
+            <button aria-label="Registrar suprimento" className="btn btn-ghost btn-sm" style={{ padding: '6px 8px', color: 'var(--accent-green)' }} onClick={() => { setCashOpType('SUPRIMENTO'); setShowCashOp(true); }}>
               <Plus size={14} />
               <span className="hide-mobile">Suprimento</span>
             </button>
-            <button className="btn btn-ghost btn-sm" style={{ padding: '6px 8px', color: 'var(--accent-red)' }} onClick={() => setModalCancelarVendaOpen(true)}>
+            <button aria-label="Cancelar venda atual" className="btn btn-ghost btn-sm" style={{ padding: '6px 8px', color: 'var(--accent-red)' }} onClick={() => setModalCancelarVendaOpen(true)}>
               <Trash2 size={14} />
               <span className="hide-mobile">Cancelar</span>
             </button>
-            <button className="btn btn-ghost btn-sm" style={{ padding: '6px 8px', color: 'var(--accent-yellow)' }} onClick={() => setModalFecharCaixaOpen(true)}>
+            <button aria-label="Fechar caixa" className="btn btn-ghost btn-sm" style={{ padding: '6px 8px', color: 'var(--accent-yellow)' }} onClick={() => setModalFecharCaixaOpen(true)}>
               <Lock size={14} />
               <span className="hide-mobile">Fechar Caixa</span>
             </button>
           </div>
 
-          <button className="btn btn-ghost btn-sm" style={{ padding: '6px' }} onClick={() => navigate('/dashboard')}>
+          <button aria-label="Sair do PDV" className="btn btn-ghost btn-sm pdv-header-icon-button" onClick={() => navigate('/dashboard')}>
              <LogOut size={16} />
           </button>
         </div>
@@ -659,6 +663,8 @@ export default function PDV() {
                     <div
                       key={p.id}
                       className="card animate-in"
+                      role="button"
+                      tabIndex={0}
                       style={{
                         padding: '10px 14px',
                         cursor: 'pointer',
@@ -669,6 +675,12 @@ export default function PDV() {
                         background: selectedIndex === i ? 'var(--bg-hover)' : 'transparent'
                       }}
                       onClick={() => handleAdicionarItem(p)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          handleAdicionarItem(p);
+                        }
+                      }}
                     >
                        <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 700, fontSize: '0.9rem', lineHeight: 1.2 }}>{p.nome}</div>
@@ -732,16 +744,20 @@ export default function PDV() {
                           <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: 8 }}>
                              <div style={{ fontSize: '0.85rem', fontWeight: 800 }}>R$ {item.subtotal.toFixed(2)}</div>
                              <button
-                                style={{ background: 'rgba(59, 130, 246, 0.1)', border: 'none', color: 'var(--accent)', padding: 6, borderRadius: 6, cursor: 'pointer' }}
+                                type="button"
+                                className="pdv-item-action"
                                 onClick={() => handleEditProduct(item)}
                                 title="Editar Produto"
+                                aria-label={`Editar ${item.nome}`}
                               >
                                 <Edit3 size={14} />
                               </button>
                              <button
-                                style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: 'var(--accent-red)', padding: 6, borderRadius: 6, cursor: 'pointer' }}
+                                type="button"
+                                className="pdv-item-action danger"
                                 onClick={() => handleRemoverItem(item, idx)}
                                 title="Remover"
+                                aria-label={`Remover ${item.nome}`}
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -764,7 +780,7 @@ export default function PDV() {
                        className="btn btn-primary"
                        style={{ flex: 1, height: 56, fontSize: '1rem', fontWeight: 800 }}
                        onClick={() => {
-                         if (window.innerWidth < 768 && activeTab === 'search') {
+                         if (isMobile && activeTab === 'search') {
                             setActiveTab('cart');
                          } else {
                             setShowPagamento(true);
@@ -772,7 +788,7 @@ export default function PDV() {
                        }}
                        disabled={carrinho.length === 0}
                     >
-                       {window.innerWidth < 768 && activeTab === 'search' ? 'VER CARRINHO' : 'PAGAR (F2)'}
+                       {isMobile && activeTab === 'search' ? 'VER CARRINHO' : 'PAGAR (F2)'}
                     </button>
                  </div>
               </div>
@@ -799,12 +815,14 @@ export default function PDV() {
 
       {/* MODAL DE PAGAMENTO */}
       {showPagamento && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
-          onClick={e => e.target === e.currentTarget && setShowPagamento(false)}>
-
-          <div className="card animate-in modal-panel modal-panel-lg pdv-payment-modal">
+        <Modal
+          onClose={() => setShowPagamento(false)}
+          labelledBy="pdv-payment-title"
+          overlayClassName="pdv-payment-overlay"
+          panelClassName="card animate-in modal-panel modal-panel-lg pdv-payment-modal"
+        >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-               <h2 style={{ fontSize: '1.5rem', fontWeight: 900 }}>Finalização de Venda</h2>
+               <h2 id="pdv-payment-title" style={{ fontSize: '1.5rem', fontWeight: 900 }}>Finalização de Venda</h2>
                <button onClick={() => setShowPagamento(false)} className="btn-icon" aria-label="Fechar pagamento"><X size={24} /></button>
             </div>
 
@@ -813,10 +831,11 @@ export default function PDV() {
                 {/* Coluna Esquerda: Lançamento de Pagamento */}
                 <div style={{ flex: 1 }}>
                    <div className="form-group" style={{ marginBottom: 16, position: 'relative' }}>
-                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Identificar Cliente</label>
+                      <label className="form-label" htmlFor="payment-customer" style={{ fontSize: '0.75rem' }}>Identificar Cliente</label>
                       <div className="search-input-wrapper" style={{ margin: 0 }}>
                          <Search size={16} className="search-icon" />
                          <input
+                            id="payment-customer"
                             className="input"
                             style={{ height: 44, borderRadius: 10, paddingLeft: 36 }}
                             placeholder="Pesquisar cliente..."
@@ -881,21 +900,26 @@ export default function PDV() {
 
                    <div className="form-group" style={{ marginBottom: 24 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <label className="form-label" style={{ fontSize: '0.75rem', color: 'var(--accent-red)', marginBottom: 0 }}>Desconto</label>
+                        <label className="form-label" htmlFor="payment-discount" style={{ fontSize: '0.75rem', color: 'var(--accent-red)', marginBottom: 0 }}>Desconto</label>
                         <div style={{ display: 'flex', background: 'var(--bg-hover)', borderRadius: 20, padding: 2 }}>
                            <button
+                             type="button"
                              className={`btn btn-xs ${tipoDesconto === 'VALOR' ? 'btn-primary' : ''}`}
+                             aria-pressed={tipoDesconto === 'VALOR'}
                              onClick={() => setTipoDesconto('VALOR')}
                              style={{ borderRadius: 18, padding: '2px 8px', height: 24, fontSize: '0.65rem', border: 'none' }}
                            >R$</button>
                            <button
+                             type="button"
                              className={`btn btn-xs ${tipoDesconto === 'PERCENTUAL' ? 'btn-primary' : ''}`}
+                             aria-pressed={tipoDesconto === 'PERCENTUAL'}
                              onClick={() => setTipoDesconto('PERCENTUAL')}
                              style={{ borderRadius: 18, padding: '2px 8px', height: 24, fontSize: '0.65rem', border: 'none' }}
                            >%</button>
                         </div>
                       </div>
                       <input
+                        id="payment-discount"
                         className="input"
                         type="number"
                         step="0.01"
@@ -907,11 +931,14 @@ export default function PDV() {
                    </div>
 
                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Forma de Pagamento</label>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <span id="payment-method-label" className="form-label" style={{ fontSize: '0.75rem' }}>Forma de Pagamento</span>
+                      <div role="group" aria-labelledby="payment-method-label" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                          {FORMAS_PAGAMENTO.map(f => (
                            <button
                              key={f.key}
+                             type="button"
+                             className="payment-method-button"
+                             aria-pressed={formaPagto === f.key}
                              onClick={() => setFormaPagto(f.key)}
                              style={{
                                display: 'flex', alignItems: 'center', gap: 6, padding: '10px 8px', borderRadius: 8, border: '1px solid var(--border)',
@@ -929,9 +956,10 @@ export default function PDV() {
                    </div>
 
                    <div className="form-group">
-                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Valor a Receber</label>
+                      <label className="form-label" htmlFor="payment-value" style={{ fontSize: '0.75rem' }}>Valor a Receber</label>
                       <div style={{ display: 'flex', gap: 10 }}>
                          <input
+                           id="payment-value"
                            ref={valorPagoRef}
                            className="input"
                            type="number"
@@ -953,7 +981,7 @@ export default function PDV() {
                               <span style={{ fontWeight: 600 }}>{p.forma}</span>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                  <strong>R$ {p.valor.toFixed(2)}</strong>
-                                 <button style={{ color: 'var(--accent-red)', border: 'none', background: 'none', padding: 4 }} onClick={() => setPagamentosRealizados(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
+                                 <button type="button" className="pdv-item-action danger" aria-label={`Remover pagamento ${p.forma}`} onClick={() => setPagamentosRealizados(prev => prev.filter((_, idx) => idx !== i))}>✕</button>
                               </div>
                            </div>
                         ))}
@@ -997,7 +1025,7 @@ export default function PDV() {
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 24, flexDirection: window.innerWidth < 768 ? 'column' : 'row' }}>
+            <div className={`pdv-payment-actions${isMobile ? ' mobile' : ''}`}>
                <button className="btn btn-primary" style={{ flex: 1, height: 50, fontSize: '1rem', fontWeight: 800, background: 'var(--accent-green)' }}
                  onClick={() => finalizarVendaMutation.mutate()}
                  disabled={totalJaPago < totalLiquido - 0.05 || finalizarVendaMutation.isPending}
@@ -1006,8 +1034,7 @@ export default function PDV() {
                   CONCLUIR VENDA
                </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {showCashOp && sessao && (
@@ -1019,12 +1046,16 @@ export default function PDV() {
       )}
 
       {modalFecharCaixaOpen && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setModalFecharCaixaOpen(false)}>
-          <div className="modal-content modal-panel-sm">
+        <Modal
+          onClose={() => setModalFecharCaixaOpen(false)}
+          labelledBy="cash-closing-title"
+          describedBy="cash-closing-description"
+          panelClassName="modal-content modal-panel-sm"
+        >
             <div className="modal-header">
               <div>
-                <h2 className="modal-title">Fechar caixa</h2>
-                <p className="modal-subtitle">Faça a conferência do dinheiro físico antes de encerrar.</p>
+                <h2 id="cash-closing-title" className="modal-title">Fechar caixa</h2>
+                <p id="cash-closing-description" className="modal-subtitle">Faça a conferência do dinheiro físico antes de encerrar.</p>
               </div>
               <button className="btn-icon" onClick={() => setModalFecharCaixaOpen(false)} aria-label="Fechar modal">
                 <X size={20} />
@@ -1035,8 +1066,8 @@ export default function PDV() {
               <div><span>Saldo esperado em dinheiro</span><strong>R$ {Number(sessao.saldo_final_calculado || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></div>
             </div>
             <div className="form-group">
-              <label className="form-label">Valor contado no caixa (R$) *</label>
-              <input className="input input-emphasis" type="number" min="0" step="0.01" autoFocus value={valorContado} onChange={e => setValorContado(e.target.value)} placeholder="0,00" />
+              <label className="form-label" htmlFor="cash-closing-value">Valor contado no caixa (R$) *</label>
+              <input id="cash-closing-value" className="input input-emphasis" type="number" min="0" step="0.01" autoFocus value={valorContado} onChange={e => setValorContado(e.target.value)} placeholder="0,00" />
               {valorContado !== '' && <p className="field-hint">Diferença: <strong className={Number(valorContado) - Number(sessao.saldo_final_calculado || 0) === 0 ? 'text-success' : 'text-danger'}>R$ {(Number(valorContado) - Number(sessao.saldo_final_calculado || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></p>}
             </div>
             <div className="modal-footer">
@@ -1049,24 +1080,27 @@ export default function PDV() {
                 {fecharCaixaMutation.isPending ? 'Fechando...' : 'Conferir e fechar'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {modalCancelarVendaOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: 400, textAlign: 'center' }}>
+        <Modal
+          onClose={() => setModalCancelarVendaOpen(false)}
+          labelledBy="cancel-sale-title"
+          describedBy="cancel-sale-description"
+          panelClassName="modal-content modal-panel-sm modal-text-center"
+        >
              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
                <div style={{ padding: 16, background: 'rgba(239, 68, 68, 0.1)', borderRadius: '50%', color: 'var(--accent-red)' }}>
                   <AlertTriangle size={32} />
                </div>
              </div>
-             <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: 12 }}>Cancelar Venda?</h3>
-             <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '0.9rem' }}>
+             <h3 id="cancel-sale-title" style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: 12 }}>Cancelar Venda?</h3>
+             <p id="cancel-sale-description" style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '0.9rem' }}>
                A venda atual será descartada e todos os itens serão removidos. Esta ação não pode ser desfeita.
              </p>
              <div style={{ display: 'flex', gap: 10 }}>
-               <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setModalCancelarVendaOpen(false)}>
+               <button data-modal-initial-focus className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setModalCancelarVendaOpen(false)}>
                  Voltar
                </button>
                <button className="btn btn-primary" style={{ flex: 1, background: 'var(--accent-red)' }} onClick={() => {
@@ -1082,20 +1116,24 @@ export default function PDV() {
                  Sim, Cancelar
                </button>
              </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {showPrintModal && (
-        <div className="modal-overlay" style={{ zIndex: 1100 }}>
-          <div className="modal-content animate-in" style={{ maxWidth: 650, width: '90%', textAlign: 'center', padding: 48 }}>
+        <Modal
+          onClose={() => { setShowPrintModal(false); setPrintData(null); }}
+          labelledBy="print-sale-title"
+          describedBy="print-sale-description"
+          overlayClassName="modal-overlay-raised"
+          panelClassName="modal-content animate-in modal-panel-md modal-text-center pdv-print-modal"
+        >
              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
                <div style={{ padding: 16, background: 'rgba(59, 130, 246, 0.1)', borderRadius: '50%', color: 'var(--accent)' }}>
                   <FileText size={32} />
                </div>
              </div>
-             <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: 12 }}>Venda Concluída!</h3>
-             <p style={{ color: 'var(--text-secondary)', marginBottom: 12, fontSize: '0.9rem' }}>
+             <h3 id="print-sale-title" style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: 12 }}>Venda Concluída!</h3>
+             <p id="print-sale-description" style={{ color: 'var(--text-secondary)', marginBottom: 12, fontSize: '0.9rem' }}>
                Deseja imprimir o comprovante desta venda?
              </p>
              <button
@@ -1117,8 +1155,7 @@ export default function PDV() {
                  Imprimir
                </button>
              </div>
-          </div>
-        </div>
+        </Modal>
       )}
       {showEditModal && editingProduct && (
         <ProdutoModal

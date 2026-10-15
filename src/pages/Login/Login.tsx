@@ -5,17 +5,18 @@ import { useAuthStore } from '../../store/authStore';
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const { login } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setError('');
     try {
       await login(username, password);
       navigate('/dashboard');
-    } catch (err) {
-      // Simplificando feedback conforme pedido: apenas um alert básico se falhar feio
-      console.error('Erro no login:', err);
+    } catch {
+      setError('Não foi possível entrar. Confira o usuário e a senha e tente novamente.');
     }
   };
 
@@ -36,8 +37,9 @@ export default function Login() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Usuário</label>
+            <label className="form-label" htmlFor="login-username">Usuário</label>
             <input
+              id="login-username"
               className="input"
               type="text"
               placeholder="Digite seu usuário"
@@ -45,19 +47,28 @@ export default function Login() {
               onChange={(e) => setUsername(e.target.value)}
               required
               autoFocus
+              autoComplete="username"
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'login-error' : undefined}
             />
           </div>
           <div className="form-group" style={{ marginBottom: 24 }}>
-            <label className="form-label">Senha</label>
+            <label className="form-label" htmlFor="login-password">Senha</label>
             <input
+              id="login-password"
               className="input"
               type="password"
               placeholder="Digite sua senha"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'login-error' : undefined}
             />
           </div>
+
+          {error && <div id="login-error" className="form-error" role="alert">{error}</div>}
 
           <button
             className="btn btn-primary"
