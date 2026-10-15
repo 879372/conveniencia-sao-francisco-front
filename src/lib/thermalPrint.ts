@@ -1,164 +1,109 @@
 /**
  * Utilitário para Impressão Direta via WebUSB (ESC/POS)
+ *
+ * O navegador exige que o usuário autorize a impressora uma única vez
+ * (requestDevice). Depois disso a permissão fica salva no Chrome/Edge e a
+ * reconexão é feita automaticamente via getDevices(), sem abrir o seletor.
  */
+
+const STORAGE_VENDOR = 'thermal_printer_vendor';
+const STORAGE_PRODUCT = 'thermal_printer_product';
+
+const usb = () => (navigator as any).usb;
 
 export class ThermalPrinter {
   private device: any | null = null;
 
   private endpointNumber: number = 1;
 
-  async requestDevice() {
-    try {
-      this.device = await (navigator as any).usb.requestDevice({ filters: [] });
-      await this.device.open();
-      if (!this.device.configuration) {
-        await this.device.selectConfiguration(1);
-      }
-
-      // Encontrar a interface correta e o endpoint de saída
-      let claimed = false;
-      for (const iface of this.device.configuration!.interfaces) {
-        try {
-          await this.device.claimInterface(iface.interfaceNumber);
-          claimed = true;
-          // Procurar o endpoint OUT
-          const alternate = iface.alternate || iface.alternates[0];
-          const outEndpoint = alternate.endpoints.find((e: any) => e.direction === 'out');
-          if (outEndpoint) {
-            this.endpointNumber = outEndpoint.endpointNumber;
-            break;
-          }
-        } catch {
-          // Tenta a próxima interface
-        }
-      }
-
-      if (!claimed) {
-        throw new Error('Não foi possível reivindicar nenhuma interface USB.');
-      }
-
-      // Salva o ID da impressora para reconexão automática se possível
-      localStorage.setItem('thermal_printer_vendor', this.device.vendorId.toString());
-      localStorage.setItem('thermal_printer_product', this.device.productId.toString());
-
-      return this.device;
-    } catch (error) {
-      console.error('Erro ao conectar impressora:', error);
-      throw error;
-    }
+  isSupported() {
+    return typeof navigator !== 'undefined' && !!usb();
   }
 
-  async print(text: string) {
-    if (!this.device) {
-      // Tenta reconectar se já houver um ID salvo
-      const vendorId = localStorage.getItem('thermal_printer_vendor');
-      if (vendorId) {
-        try {
-          const devices = await (navigator as any).usb.getDevices();
-          this.device = devices.find((d: any) => d.vendorId === parseInt(vendorId)) || null;
-          if (this.device) {
-            await this.device.open();
-            if (!this.device.configuration) {
-              await this.device.selectConfiguration(1);
-            }
-
-            for (const iface of this.device.configuration!.interfaces) {
-              try {
-                await this.device.claimInterface(iface.interfaceNumber);
-                const alternate = iface.alternate || iface.alternates[0];
-                const outEndpoint = alternate.endpoints.find((e: any) => e.direction === 'out');
-                if (outEndpoint) {
-                  this.endpointNumber = outEndpoint.endpointNumber;
-                  break;
-                }
-              } catch {
-                // Tenta a próxima interface USB disponível.
-              }
-            }
-          }
-        } catch (e) {
-          console.error('Falha na reconexão automática:', e);
-        }
-      }
+  /** Abre o seletor do navegador. Precisa ser chamado a partir de um clique. */
+  async requestDevice() {
+    if (!this.isSupported()) {
+      throw new Error('Este navegador não suporta impressão USB. Use o Google Chrome ou o Microsoft Edge.');
     }
-
-    if (!this.device) throw new Error('Impressora não conectada');
-
-    const encoder = new TextEncoder();
-
-    // Comandos ESC/POS Básicos
-    const INIT = '\x1B\x40';
-    const CUT = '\x1D\x56\x00';
-    const FEED = '\n\n\n';
-
-    const cleanText = text
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
-      .replace(/[^\u0020-\u007E\n\r\t]/g, '');
-
-    const data = encoder.encode(INIT + cleanText + FEED + CUT);
-    await this.sendData(data);
+    const device = await usb().requestDevice({ filters: [] });
+    await this.connect(device);
+    localStorage.setItem(STORAGE_VENDOR, String(device.vendorId));
+    localStorage.setItem(STORAGE_PRODUCT, String(device.productId));
+    return device;
   }
 
   /**
-   * Imprime texto seguido de um QR Code (útil para o comprovante online)
+   * Garante uma conexão ativa, reaproveitando a impressora já autorizada.
+   * Só abre o seletor quando nenhuma impressora foi autorizada ainda.
    */
-  async printWithQRCode(text: string, qrCodeData: string) {
-    if (!this.device) await this.requestDevice();
-    if (!this.device) throw new Error('Impressora não conectada');
+  async ensureConnected() {
+    if (this.device?.opened) return;
+    this.device = null;
 
-    const encoder = new TextEncoder();
+    if (!this.isSupported()) {
+      throw new Error('Este navegador não suporta impressão USB. Use o Google Chrome ou o Microsoft Edge.');
+    }
 
-    // Comandos Iniciais
-    const INIT = '\x1B\x40';
-    const FEED = '\n\n';
-    const CUT = '\x1D\x56\x00';
+    const devices: any[] = await usb().getDevices();
+    const vendorId = Number(localStorage.getItem(STORAGE_VENDOR));
+    const productId = Number(localStorage.getItem(STORAGE_PRODUCT));
+    const saved = devices.find((d) => d.vendorId === vendorId && d.productId === productId)
+      || (devices.length === 1 ? devices[0] : null);
 
-    const cleanText = text
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^\u0020-\u007E\n\r\t]/g, '');
+    if (saved) {
+      await this.connect(saved);
+      return;
+    }
 
-    // Comandos QR Code (Padrão ESC/POS)
-    const storeLen = qrCodeData.length + 3;
-    const storeL = storeLen & 0xFF;
-    const storeH = (storeLen >> 8) & 0xFF;
-
-    const qrCommands = [
-      '\x1B\x61\x01', // Centralizar
-      '\x1D\x28\x6B\x04\x00\x31\x41\x32\x00', // Modelo 2
-      '\x1D\x28\x6B\x03\x00\x31\x43\x08',     // Tamanho do módulo (8)
-      '\x1D\x28\x6B\x03\x00\x31\x45\x30',     // Correção de erro L
-      `\x1D\x28\x6B${String.fromCharCode(storeL)}${String.fromCharCode(storeH)}\x31\x50\x30${qrCodeData}`, // Armazenar dados
-      '\x1D\x28\x6B\x03\x00\x31\x51\x30',     // Imprimir QR Code
-    ].join('');
-
-    const mainData = encoder.encode(INIT + cleanText + FEED);
-    const qrData = encoder.encode(qrCommands + '\n\n\n' + CUT);
-
-    const combinedData = new Uint8Array(mainData.length + qrData.length);
-    combinedData.set(mainData);
-    combinedData.set(qrData, mainData.length);
-
-    await this.sendData(combinedData);
+    await this.requestDevice();
   }
 
-  private async sendData(data: Uint8Array) {
-    if (!this.device) return;
+  async print(text: string) {
+    const encoder = new TextEncoder();
+    await this.printBytes(encoder.encode('\x1B\x40' + sanitize(text) + '\n\n\n\n\x1D\x56\x00'));
+  }
+
+  async printBytes(data: Uint8Array) {
+    await this.ensureConnected();
     try {
-        await this.device.transferOut(this.endpointNumber, data);
-    } catch (e) {
-        console.error('Erro no transferOut principal:', e);
-        // Fallback para tentar outros endpoints caso a detecção dinâmica falhe
-        try { await this.device.transferOut(1, data); } catch {
-          try { await this.device.transferOut(2, data); } catch {
-            try { await this.device.transferOut(3, data); } catch {
-              console.error('Falha em todos os endpoints.');
-            }
-          }
-        }
+      await this.device.transferOut(this.endpointNumber, data);
+    } catch (error) {
+      // A impressora pode ter sido desligada/reconectada: tenta uma nova conexão uma vez.
+      console.error('Falha ao enviar para a impressora, reconectando:', error);
+      this.device = null;
+      await this.ensureConnected();
+      await this.device.transferOut(this.endpointNumber, data);
     }
   }
+
+  private async connect(device: any) {
+    if (!device.opened) await device.open();
+    if (!device.configuration) await device.selectConfiguration(1);
+
+    for (const iface of device.configuration.interfaces) {
+      const alternate = iface.alternate || iface.alternates[0];
+      const outEndpoint = alternate.endpoints.find((e: any) => e.direction === 'out');
+      if (!outEndpoint) continue;
+      try {
+        if (!iface.claimed) await device.claimInterface(iface.interfaceNumber);
+        this.endpointNumber = outEndpoint.endpointNumber;
+        this.device = device;
+        return;
+      } catch {
+        // Tenta a próxima interface USB disponível.
+      }
+    }
+
+    throw new Error(
+      'Não foi possível acessar a impressora USB. Verifique se ela está ligada e se nenhum outro programa está usando.'
+    );
+  }
 }
+
+/** Remove acentos e caracteres que a impressora não imprime. */
+export const sanitize = (text: string) => text
+  .normalize('NFD')
+  .replace(/[̀-ͯ]/g, '')
+  .replace(/[^ -~\n]/g, '');
 
 export const thermalPrinter = new ThermalPrinter();

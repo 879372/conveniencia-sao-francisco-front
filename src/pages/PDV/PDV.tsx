@@ -24,6 +24,7 @@ import {
   Printer
 } from 'lucide-react';
 import { thermalPrinter } from '../../lib/thermalPrint';
+import { cupomBytes, cupomDaVenda, CupomDados } from '../../lib/cupom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Produto, ItemCarrinho, Sessao, Venda, Pagamento } from './types';
 import CashOpsModal from './CashOpsModal';
@@ -102,7 +103,7 @@ export default function PDV() {
 
   // Impressão de comprovante
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [printData, setPrintData] = useState<any>(null);
+  const [printData, setPrintData] = useState<CupomDados | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
 
@@ -286,17 +287,6 @@ export default function PDV() {
         desconto: valorDescontoReal.toFixed(2)
       });
 
-      // Salva os dados da venda finalizada para o compartilhamento
-      console.log('VENDA FINALIZADA (SERVER RESPONSE):', respVenda.data);
-      setPrintData({
-        ...respVenda.data,
-        carrinho: [...carrinho],
-        pagamentosRealizados: [...pagamentosRealizados],
-        total,
-        troco,
-        dataHora: new Date().toLocaleString('pt-BR')
-      });
-
       return respVenda;
     },
     onSuccess: (respVenda) => {
@@ -304,14 +294,10 @@ export default function PDV() {
       setShowPagamento(false);
 
       // Sempre prepara os dados de impressão/compartilhamento e exibe o modal de sucesso
-      setPrintData({
-        ...respVenda.data,
-        carrinho: [...carrinho],
-        pagamentosRealizados: [...pagamentosRealizados],
-        total,
+      setPrintData(cupomDaVenda(respVenda.data, {
+        pagamentos: [...pagamentosRealizados],
         troco,
-        dataHora: new Date().toLocaleString('pt-BR')
-      });
+      }));
       setShowPrintModal(true);
 
       queryClient.invalidateQueries({ queryKey: ['venda-aberta'] });
@@ -337,54 +323,23 @@ export default function PDV() {
     if (!printData) return;
 
     try {
-      const isOrcamento = printData.status === 'ORCAMENTO';
-      let cupom = ` CONVENIENCIA SAO FRANCISCO\n`;
-      cupom += isOrcamento ? `        ORCAMENTO\n` : `   Comprovante de Venda\n`;
-      cupom += `--------------------------------\n`;
-      cupom += `Data: ${printData.dataHora}\n`;
-      cupom += `${isOrcamento ? 'Orcamento' : 'Venda'}: #${printData.id || 'N/A'}\n`;
-      cupom += `--------------------------------\n`;
-
-      printData.carrinho.forEach((item: any) => {
-        const nome = (item.nome || 'Item').substring(0, 18).padEnd(18, ' ');
-        const totalItem = Number(item.subtotal || 0).toFixed(2).padStart(8, ' ');
-        cupom += `${nome} ${totalItem}\n`;
-        cupom += `  ${Number(item.quantidade || 0).toFixed(3)} x ${Number(item.preco_unitario || 0).toFixed(2)}\n`;
-      });
-
-      cupom += `--------------------------------\n`;
-      cupom += `SUBTOTAL:       R$ ${Number(printData.total || 0).toFixed(2).padStart(10, ' ')}\n`;
-      if (printData.desconto > 0) {
-        cupom += `DESCONTO:     - R$ ${Number(printData.desconto).toFixed(2).padStart(10, ' ')}\n`;
-      }
-      const totalLiq = Number(printData.total || 0) - Number(printData.desconto || 0);
-      cupom += `TOTAL:          R$ ${totalLiq.toFixed(2).padStart(10, ' ')}\n`;
-      cupom += `--------------------------------\n`;
-
-      cupom += `       OBRIGADO! \n`;
-
-      if (printData.id_externo) {
-        const publicUrl = (import.meta as any).env.VITE_PUBLIC_URL;
-        const apiBase = publicUrl || ((import.meta as any).env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '');
-        const qrUrl = `${apiBase}/api/comprovante/${printData.id_externo}/`;
-        await thermalPrinter.printWithQRCode(cupom, qrUrl);
-      } else {
-        await thermalPrinter.print(cupom);
-      }
-
-      toast.success('Imprimindo via USB...');
-    } catch (error) {
+      // Na primeira vez abre o seletor do navegador; depois imprime direto.
+      await thermalPrinter.printBytes(cupomBytes(printData));
+      toast.success('Cupom enviado para a impressora.');
+    } catch (error: any) {
       console.error(error);
-      toast.error('Impressora USB não conectada. Clique no ícone de impressora no topo.');
+      if (error?.name === 'NotFoundError') return; // seletor fechado sem escolher
+      toast.error(error?.message || 'Erro ao imprimir. Verifique a impressora USB.');
     }
   };
 
   const handleConnectPrinter = async () => {
     try {
       await thermalPrinter.requestDevice();
-      toast.success('Impressora USB Conectada!');
-    } catch {
-      toast.error('Falha ao conectar impressora.');
+      toast.success('Impressora USB configurada!');
+    } catch (error: any) {
+      if (error?.name === 'NotFoundError') return;
+      toast.error(error?.message || 'Falha ao conectar impressora.');
     }
   };
 
@@ -1251,7 +1206,7 @@ export default function PDV() {
                 style={{ background: 'none', border: 'none', color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.85rem', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 6, margin: '0 auto 24px' }}
               >
                 <Printer size={14} />
-                Configurar Impressora USB
+                Trocar impressora USB
               </button>
              <div style={{ display: 'flex', gap: 10 }}>
                <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => {
@@ -1260,7 +1215,7 @@ export default function PDV() {
                }}>
                  Fechar
                </button>
-               <button className="btn btn-primary" style={{ flex: 1, background: '#10b981' }} onClick={handlePrintUSB}>
+               <button className="btn btn-primary" style={{ flex: 1, background: '#10b981' }} onClick={handlePrintUSB} autoFocus>
                  <Printer size={18} />
                  Imprimir
                </button>
