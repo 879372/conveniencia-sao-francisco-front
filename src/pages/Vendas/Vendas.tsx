@@ -12,6 +12,7 @@ import {
   Printer
 } from 'lucide-react';
 import { thermalPrinter } from '../../lib/thermalPrint';
+import { cupomBytes, cupomDaVenda } from '../../lib/cupom';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -104,53 +105,22 @@ export default function Vendas() {
 
   const handlePrintUSB = async (venda: Venda) => {
     try {
-      let cupom = ` CONVENIENCIA SAO FRANCISCO\n`;
-      cupom += `   Comprovante de Venda\n`;
-      cupom += `--------------------------------\n`;
-      cupom += `Data: ${new Date(venda.data).toLocaleString('pt-BR')}\n`;
-      cupom += `Venda: #${venda.id}\n`;
-      cupom += `--------------------------------\n`;
-
-      venda.itens.forEach((item) => {
-        const nome = (item.produto?.nome || item.produto_nome || 'Item').substring(0, 18).padEnd(18, ' ');
-        const totalItem = Number(item.subtotal || 0).toFixed(2).padStart(8, ' ');
-        cupom += `${nome} ${totalItem}\n`;
-        cupom += `  ${Number(item.quantidade || 0).toFixed(3)} x ${Number(item.preco_unitario || 0).toFixed(2)}\n`;
-      });
-
-      cupom += `--------------------------------\n`;
-      cupom += `SUBTOTAL:       R$ ${Number(venda.total || 0).toFixed(2).padStart(10, ' ')}\n`;
-      if ((venda.desconto || 0) > 0) {
-        cupom += `DESCONTO:     - R$ ${Number(venda.desconto).toFixed(2).padStart(10, ' ')}\n`;
-      }
-      const totalLiq = Number(venda.total || 0) - Number(venda.desconto || 0);
-      cupom += `TOTAL:          R$ ${totalLiq.toFixed(2).padStart(10, ' ')}\n`;
-      cupom += `--------------------------------\n`;
-
-      cupom += `       OBRIGADO! \n`;
-
-      if (venda.id_externo) {
-          const publicUrl = (import.meta as any).env.VITE_PUBLIC_URL;
-          const apiBase = publicUrl || ((import.meta as any).env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '');
-          const qrUrl = `${apiBase}/api/comprovante/${venda.id_externo}/`;
-          await thermalPrinter.printWithQRCode(cupom, qrUrl);
-      } else {
-          await thermalPrinter.print(cupom);
-      }
-
-      toast.success('Imprimindo via USB...');
-    } catch (error) {
+      await thermalPrinter.printBytes(cupomBytes(cupomDaVenda(venda)));
+      toast.success('Cupom enviado para a impressora.');
+    } catch (error: any) {
       console.error(error);
-      toast.error('Erro ao imprimir. Verifique a impressora USB.');
+      if (error?.name === 'NotFoundError') return; // seletor fechado sem escolher
+      toast.error(error?.message || 'Erro ao imprimir. Verifique a impressora USB.');
     }
   };
 
   const handleConnectPrinter = async () => {
     try {
       await thermalPrinter.requestDevice();
-      toast.success('Impressora USB Conectada!');
-    } catch {
-      toast.error('Falha ao conectar impressora.');
+      toast.success('Impressora USB configurada!');
+    } catch (error: any) {
+      if (error?.name === 'NotFoundError') return;
+      toast.error(error?.message || 'Falha ao conectar impressora.');
     }
   };
 
