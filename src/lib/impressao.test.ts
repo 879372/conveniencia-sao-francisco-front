@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { cupomDaVenda } from './cupom';
-import { getModoImpressao, montarCupomHtml, setModoImpressao } from './impressao';
+import { montarCupomHtml } from './impressao';
 
 const venda = {
   id: 33586,
@@ -44,26 +44,5 @@ describe('montarCupomHtml', () => {
     expect(html).not.toContain('<script>alert(1)');
     expect(html).not.toContain('<IMG SRC=X');
     expect(html).toContain('&lt;script&gt;');
-  });
-});
-
-describe('modo de impressão', () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('usa o Windows por padrão e lembra a escolha', () => {
-    const dados = new Map<string, string>();
-    vi.stubGlobal('localStorage', {
-      getItem: (chave: string) => dados.get(chave) ?? null,
-      setItem: (chave: string, valor: string) => dados.set(chave, valor),
-    });
-
-    expect(getModoImpressao()).toBe('sistema');
-    setModoImpressao('usb');
-    expect(getModoImpressao()).toBe('usb');
-  });
-
-  it('volta para o Windows quando o navegador bloqueia o armazenamento', () => {
-    vi.stubGlobal('localStorage', undefined);
-    expect(getModoImpressao()).toBe('sistema');
   });
 });

@@ -1,39 +1,11 @@
 /**
- * Impressão do cupom pelo PDV.
- *
- * - "sistema" (padrão): monta o cupom em HTML de 80mm e imprime pelo driver
- *   da impressora instalado no Windows. Com o Chrome aberto pelo atalho com
- *   --kiosk-printing, vai direto para a impressora padrão, sem abrir janela.
- * - "usb": envia ESC/POS direto via WebUSB (exige driver WinUSB no Windows).
+ * Impressão do cupom pelo PDV: monta o DAV em HTML de 80mm e imprime pelo
+ * driver da impressora instalado no Windows. Com o Chrome aberto pelo atalho
+ * com --kiosk-printing, vai direto para a impressora padrão, sem abrir janela.
  */
-import { CupomDados, cupomBytes, FORMAS, LOJA, moeda } from './cupom';
-import { thermalPrinter } from './thermalPrint';
-
-export type ModoImpressao = 'sistema' | 'usb';
-
-const STORAGE_MODO = 'pdv_impressao_modo';
-
-export const getModoImpressao = (): ModoImpressao => {
-  try {
-    return localStorage.getItem(STORAGE_MODO) === 'usb' ? 'usb' : 'sistema';
-  } catch {
-    return 'sistema';
-  }
-};
-
-export const setModoImpressao = (modo: ModoImpressao) => {
-  try {
-    localStorage.setItem(STORAGE_MODO, modo);
-  } catch {
-    // Sem armazenamento local: segue no modo padrão.
-  }
-};
+import { CupomDados, FORMAS, LOJA, moeda } from './cupom';
 
 export async function imprimirCupom(dados: CupomDados) {
-  if (getModoImpressao() === 'usb') {
-    await thermalPrinter.printBytes(cupomBytes(dados));
-    return;
-  }
   await imprimirPeloSistema(montarCupomHtml(dados));
 }
 
@@ -52,7 +24,7 @@ const quantidade = (valor: number) =>
 const linha = (esquerda: string, direita: string, classe = '') =>
   `<div class="row ${classe}"><span>${escapar(esquerda)}</span><span>${escapar(direita)}</span></div>`;
 
-/** Mesmo layout do DAV impresso via ESC/POS, em HTML para o driver do Windows. */
+/** Layout do DAV usado pela loja, em HTML para o driver do Windows. */
 export function montarCupomHtml(dados: CupomDados): string {
   const titulo = dados.orcamento
     ? '<div class="center bold">ORÇAMENTO</div>'
@@ -79,21 +51,21 @@ export function montarCupomHtml(dados: CupomDados): string {
   @page { size: 80mm auto; margin: 0; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #000; }
-  /* Fonte encorpada e em negrito: o driver imprime o cupom como imagem e
-     traços finos saem claros/falhados no papel térmico. */
+  /* Negrito: o driver imprime o cupom como imagem e traços finos saem
+     claros/falhados no papel térmico. */
   body {
     width: 68mm;
     padding: 2mm 2mm 6mm;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 12px;
+    font-size: 9px;
     font-weight: 700;
-    line-height: 1.35;
+    line-height: 1.3;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   .center { text-align: center; }
   .bold { font-weight: 700; }
-  .big { font-size: 16px; }
+  .big { font-size: 12px; }
   .muted { margin-top: 2px; }
   .sep { border-top: 1px dashed #000; margin: 4px 0; }
   .sep, .sep-strong { width: 100%; }
@@ -103,7 +75,7 @@ export function montarCupomHtml(dados: CupomDados): string {
   .cols span:first-child { text-align: left; }
   .item { word-break: break-word; }
   .right { text-align: right; }
-  .space { height: 6px; }
+  .space { height: 4px; }
 </style>
 </head>
 <body>

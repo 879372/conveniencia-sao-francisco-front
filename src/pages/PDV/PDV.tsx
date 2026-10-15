@@ -8,7 +8,6 @@ import {
   CreditCard,
   QrCode,
   Banknote,
-  ClipboardList,
   ArrowRight,
   LogOut,
   Store,
@@ -25,7 +24,6 @@ import {
 } from 'lucide-react';
 import { cupomDaVenda, CupomDados } from '../../lib/cupom';
 import { imprimirCupom } from '../../lib/impressao';
-import ModoImpressaoSelect from '../../components/ModoImpressaoSelect';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Produto, ItemCarrinho, Sessao, Venda, Pagamento } from './types';
 import CashOpsModal from './CashOpsModal';
@@ -38,7 +36,6 @@ const FORMAS_PAGAMENTO = [
   { key: 'PIX', label: 'Pix', icon: QrCode, color: 'var(--accent)' },
   { key: 'CARTAO_DEBITO', label: 'Débito', icon: CreditCard, color: 'var(--accent-yellow)' },
   { key: 'CARTAO_CREDITO', label: 'Crédito', icon: CreditCard, color: 'var(--accent-yellow)' },
-  { key: 'FIADO', label: 'Fiado', icon: ClipboardList, color: 'var(--accent-red)' },
 ];
 
 // Exportado somente para os testes unitários dos cálculos monetários.
@@ -309,23 +306,24 @@ export default function PDV() {
   });
 
   const finalizarVendaMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (pagamentos: Pagamento[]) => {
       const respVenda = await api.post(`/vendas/${venda?.id}/finalizar/`, {
-        pagamentos: pagamentosRealizados,
+        pagamentos,
         cliente: clienteId,
         desconto: valorDescontoReal.toFixed(2)
       });
 
       return respVenda;
     },
-    onSuccess: (respVenda) => {
+    onSuccess: (respVenda, pagamentos) => {
       toast.success('Venda finalizada!');
       setShowPagamento(false);
 
       // Sempre prepara os dados de impressão/compartilhamento e exibe o modal de sucesso
+      const pagoCentavos = pagamentos.reduce((acc, p) => acc + toCents(p.valor), 0);
       setPrintData(cupomDaVenda(respVenda.data, {
-        pagamentos: [...pagamentosRealizados],
-        troco,
+        pagamentos: [...pagamentos],
+        troco: Math.max(0, pagoCentavos - totalLiquidoCentavos) / 100,
       }));
       setShowPrintModal(true);
 
@@ -355,7 +353,6 @@ export default function PDV() {
       await imprimirCupom(printData);
     } catch (error: any) {
       console.error(error);
-      if (error?.name === 'NotFoundError') return; // seletor USB fechado sem escolher
       toast.error(error?.message || 'Erro ao imprimir o cupom.');
     }
   };
@@ -560,6 +557,34 @@ export default function PDV() {
     if (produto) handleAdicionarItem(produto, quantidade);
   };
 
+  /**
+   * Conclui a venda (botão ou F4). Se ainda faltar valor e houver um valor
+   * digitado no campo, ele entra como pagamento na forma selecionada, para
+   * que F2 → F4 finalize direto com o valor sugerido.
+   */
+  const concluirVenda = () => {
+    if (finalizarVendaMutation.isPending) return;
+
+    let pagamentos = pagamentosRealizados;
+    let pagoCentavos = totalPagoCentavos;
+    if (pagoCentavos < totalLiquidoCentavos) {
+      const digitado = parseFloat(valorPago || '0');
+      const digitadoCentavos = Number.isFinite(digitado) ? toCents(digitado) : 0;
+      if (digitadoCentavos > 0) {
+        pagamentos = [...pagamentos, { forma: formaPagto, valor: digitadoCentavos / 100 }];
+        pagoCentavos += digitadoCentavos;
+        setPagamentosRealizados(pagamentos);
+        setValorPago('');
+      }
+    }
+
+    if (pagamentos.length === 0 || pagoCentavos < totalLiquidoCentavos) {
+      toast.error('O pagamento não cobre o total da venda.');
+      return;
+    }
+    finalizarVendaMutation.mutate(pagamentos);
+  };
+
   const handleAddPagamento = () => {
     const valor = parseFloat(valorPago || '0');
     const valorCentavos = Number.isFinite(valor) ? toCents(valor) : 0;
@@ -621,6 +646,20 @@ export default function PDV() {
     showPagamento,
     showPrintModal,
   ]);
+
+  // F4 no pagamento: concluir venda
+  const concluirVendaRef = useRef(concluirVenda);
+  concluirVendaRef.current = concluirVenda;
+  useEffect(() => {
+    if (!showPagamento) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'F4' || e.repeat) return;
+      e.preventDefault();
+      concluirVendaRef.current();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [showPagamento]);
 
   if (loadingSessao) return <div className="loading">Iniciando terminal de venda...</div>;
 
@@ -1124,11 +1163,12 @@ export default function PDV() {
 
             <div className={`pdv-payment-actions${isMobile ? ' mobile' : ''}`}>
                <button className="btn btn-primary" style={{ flex: 1, height: 50, fontSize: '1rem', fontWeight: 800, background: 'var(--accent-green)' }}
-                 onClick={() => finalizarVendaMutation.mutate()}
-                 disabled={pagamentosRealizados.length === 0 || totalPagoCentavos < totalLiquidoCentavos || finalizarVendaMutation.isPending}
+                 onClick={concluirVenda}
+                 disabled={finalizarVendaMutation.isPending}
+                 aria-keyshortcuts="F4"
                >
                   <CheckCircle2 size={20} />
-                  CONCLUIR VENDA
+                  {finalizarVendaMutation.isPending ? 'CONCLUINDO...' : 'CONCLUIR VENDA (F4)'}
                </button>
             </div>
         </Modal>
@@ -1230,10 +1270,9 @@ export default function PDV() {
                </div>
              </div>
              <h3 id="print-sale-title" style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: 12 }}>Venda Concluída!</h3>
-             <p id="print-sale-description" style={{ color: 'var(--text-secondary)', marginBottom: 12, fontSize: '0.9rem' }}>
+             <p id="print-sale-description" style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '0.9rem' }}>
                Deseja imprimir o comprovante desta venda?
              </p>
-             <ModoImpressaoSelect style={{ justifyContent: 'center', marginBottom: 24 }} />
              <div style={{ display: 'flex', gap: 10 }}>
                <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => {
                  setShowPrintModal(false);

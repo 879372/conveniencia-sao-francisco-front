@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { cupomDaVenda } from '../../lib/cupom';
 import { imprimirCupom } from '../../lib/impressao';
-import ModoImpressaoSelect from '../../components/ModoImpressaoSelect';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -109,7 +108,6 @@ export default function Vendas() {
       await imprimirCupom(cupomDaVenda(venda));
     } catch (error: any) {
       console.error(error);
-      if (error?.name === 'NotFoundError') return; // seletor USB fechado sem escolher
       toast.error(error?.message || 'Erro ao imprimir o cupom.');
     }
   };
@@ -322,8 +320,7 @@ export default function Vendas() {
                </div>
             </div>
 
-            <div style={{ padding: '24px 32px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)' }}>
-               <ModoImpressaoSelect />
+            <div style={{ padding: '24px 32px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', background: 'rgba(255,255,255,0.01)' }}>
 
                <div style={{ display: 'flex', gap: 12 }}>
                 {selectedVenda.status === 'FINALIZADA' && (
