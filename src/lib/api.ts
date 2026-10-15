@@ -43,31 +43,66 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Renovação única compartilhada: se várias requisições recebem 401 ao mesmo
+// tempo, todas esperam a mesma renovação em vez de disparar várias.
+let renovacaoEmAndamento: Promise<string> | null = null;
+
+const encerrarSessao = () => {
+  localStorage.clear();
+  window.location.href = '/login';
+};
+
+export const renovarToken = () => {
+  if (!renovacaoEmAndamento) {
+    const refreshToken = localStorage.getItem('refresh_token');
+    renovacaoEmAndamento = (async () => {
+      if (!refreshToken) throw new Error('Sem refresh token');
+      const { data } = await axios.post(`${API_BASE_URL}/auth/refresh/`, { refresh: refreshToken });
+      localStorage.setItem('access_token', data.access);
+      // Com ROTATE_REFRESH_TOKENS o backend devolve um refresh novo (validade
+      // renovada). Sem salvar, a sessão vencia no prazo do refresh original.
+      if (data.refresh) localStorage.setItem('refresh_token', data.refresh);
+      return data.access as string;
+    })().finally(() => {
+      renovacaoEmAndamento = null;
+    });
+  }
+  return renovacaoEmAndamento;
+};
+
 // Response interceptor: handles silent refresh and 401s
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const isAuthCall = String(originalRequest?.url || '').includes('/auth/');
 
     // 1. Silent Refresh for 401s
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthCall) {
       originalRequest._retry = true;
-      const refreshToken = localStorage.getItem('refresh_token');
 
-      if (refreshToken) {
-        try {
-          const { data } = await axios.post(`${API_BASE_URL}/auth/refresh/`, {
-            refresh: refreshToken,
+      if (!localStorage.getItem('refresh_token')) {
+        encerrarSessao();
+        return Promise.reject(error);
+      }
+
+      try {
+        const access = await renovarToken();
+        originalRequest.headers.Authorization = `Bearer ${access}`;
+        return api(originalRequest);
+      } catch (refreshError: any) {
+        // Só desloga quando o servidor recusa o refresh (expirado/inválido).
+        // Falha de rede ou servidor fora do ar mantém o login.
+        const status = refreshError?.response?.status;
+        if (status === 401 || status === 400 || refreshError?.message === 'Sem refresh token') {
+          encerrarSessao();
+        } else {
+          toast.error('Sem conexão com o servidor.', {
+            description: 'Verifique a internet e tente novamente.',
+            duration: 5000,
           });
-
-          localStorage.setItem('access_token', data.access);
-          originalRequest.headers.Authorization = `Bearer ${data.access}`;
-          return api(originalRequest);
-        } catch {
-          localStorage.clear();
-          window.location.href = '/login';
-          return Promise.reject(error);
         }
+        return Promise.reject(error);
       }
     }
 
