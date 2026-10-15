@@ -68,6 +68,25 @@ export const discountInCents = (
   return Math.min(calculated, Math.max(0, totalCents - 1));
 };
 
+/**
+ * Interpreta o campo de busca do PDV: "3*789..." define a quantidade e um
+ * termo só com dígitos é tratado como código (barras ou código interno).
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export const parseEntradaPdv = (raw: string) => {
+  let termo = raw.trim();
+  let quantidade = 1;
+  const multiplicador = termo.match(/^(\d+(?:[.,]\d+)?)\s*\*\s*(.*)$/);
+  if (multiplicador) {
+    const qtd = Number(multiplicador[1].replace(',', '.'));
+    if (qtd > 0) {
+      quantidade = qtd;
+      termo = multiplicador[2].trim();
+    }
+  }
+  return { termo, quantidade, ehCodigo: /^\d+$/.test(termo) };
+};
+
 import { toast } from 'sonner';
 
 export default function PDV() {
@@ -79,7 +98,6 @@ export default function PDV() {
   const [busca, setBusca] = useState('');
   const [resultados, setResultados] = useState<Produto[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [isAdding, setIsAdding] = useState(false);
   const [qtyMultiplier, setQtyMultiplier] = useState(1);
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>(() => {
     const saved = localStorage.getItem('pdv_cart');
@@ -135,8 +153,18 @@ export default function PDV() {
   });
 
   const buscaRef = useRef<HTMLInputElement>(null);
-  const lastScanRef = useRef<{ code: string, time: number }>({ code: '', time: 0 });
-  const isProcessingScanRef = useRef(false);
+  // Fila de adições: cada bipe é processado em ordem, um por vez, sem descartar
+  // leituras rápidas nem criar duas vendas ao mesmo tempo.
+  const filaAdicaoRef = useRef<Promise<void>>(Promise.resolve());
+  const vendaRef = useRef<Venda | null>(venda);
+  // Descarta respostas de buscas antigas que chegam fora de ordem.
+  const buscaSeqRef = useRef(0);
+  const buscaTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    vendaRef.current = venda;
+  }, [venda]);
+  useEffect(() => () => clearTimeout(buscaTimerRef.current), []);
   const valorPagoRef = useRef<HTMLInputElement>(null);
 
   // Totais
@@ -410,121 +438,138 @@ export default function PDV() {
     }
   };
 
-  const handleAdicionarItem = useCallback(async (produto: Produto, qtyOverride?: number) => {
-    if (isAdding) return;
-    setIsAdding(true);
+  const enfileirar = useCallback((tarefa: () => Promise<void>) => {
+    const proxima = filaAdicaoRef.current.then(tarefa);
+    filaAdicaoRef.current = proxima.catch(() => {});
+    return proxima;
+  }, []);
+
+  const adicionarProduto = useCallback(async (produto: Produto, quantidade: number) => {
     setProductAddingId(produto.id);
-
     try {
-      let currentVenda = venda;
+      let currentVenda = vendaRef.current;
       if (!currentVenda && sessao) {
-         const resp = await criarVendaMutation.mutateAsync(sessao.id);
-         currentVenda = resp.data;
-         setVenda(currentVenda);
+        const resp = await criarVendaMutation.mutateAsync(sessao.id);
+        currentVenda = resp.data;
+        vendaRef.current = currentVenda;
+        setVenda(currentVenda);
       }
+      if (!currentVenda) return;
 
-      const quantityToAdd = qtyOverride || qtyMultiplier || 1;
+      await adicionarItemMutation.mutateAsync({
+        vendaId: currentVenda.id,
+        produto,
+        qty: quantidade
+      });
 
-      if (currentVenda) {
-          await adicionarItemMutation.mutateAsync({
-            vendaId: currentVenda.id,
-            produto,
-            qty: quantityToAdd
-          });
+      setCarrinho(prev => {
+        const idx = prev.findIndex(i => i.produto_id === produto.id);
+        const preco = Number(produto.preco_venda);
+        if (idx >= 0) {
+          const novo = [...prev];
+          const novaQty = novo[idx].quantidade + quantidade;
+          novo[idx] = {
+            ...novo[idx],
+            quantidade: novaQty,
+            subtotal: novaQty * novo[idx].preco_unitario
+          };
+          return novo;
+        }
+        return [...prev, {
+          produto_id: produto.id,
+          nome: produto.nome,
+          quantidade,
+          preco_unitario: preco,
+          subtotal: preco * quantidade,
+          unidade: produto.unidade_medida
+        }];
+      });
+      await queryClient.invalidateQueries({ queryKey: ['venda-aberta'] });
+    } catch {
+      toast.error(`Erro ao adicionar ${produto.nome}.`);
+    } finally {
+      setProductAddingId(null);
+    }
+  }, [sessao, adicionarItemMutation, criarVendaMutation, queryClient]);
 
-          setCarrinho(prev => {
-              const idx = prev.findIndex(i => i.produto_id === produto.id);
-              const preco = Number(produto.preco_venda);
-              if (idx >= 0) {
-                const novo = [...prev];
-                const novaQty = novo[idx].quantidade + quantityToAdd;
-                novo[idx] = {
-                   ...novo[idx],
-                   quantidade: novaQty,
-                   subtotal: novaQty * novo[idx].preco_unitario
-                };
-                return novo;
-              }
-              return [...prev, {
-                produto_id: produto.id,
-                nome: produto.nome,
-                quantidade: quantityToAdd,
-                preco_unitario: preco,
-                subtotal: preco * quantityToAdd,
-                unidade: produto.unidade_medida
-              }];
-          });
+  const limparBusca = useCallback(() => {
+    clearTimeout(buscaTimerRef.current);
+    buscaSeqRef.current += 1;
+    setBusca('');
+    setResultados([]);
+    setSelectedIndex(0);
+    setQtyMultiplier(1);
+  }, []);
 
-          setBusca('');
-          setResultados([]);
+  /** Adiciona um produto escolhido na lista (clique ou Enter no texto). */
+  const handleAdicionarItem = useCallback((produto: Produto, quantidade = qtyMultiplier) => {
+    limparBusca();
+    buscaRef.current?.focus();
+    return enfileirar(() => adicionarProduto(produto, quantidade || 1));
+  }, [qtyMultiplier, limparBusca, enfileirar, adicionarProduto]);
+
+  /** Leitor de código de barras: só adiciona quando o código bate por completo. */
+  const handleCodigo = useCallback((codigo: string, quantidade: number) => {
+    limparBusca();
+    return enfileirar(async () => {
+      try {
+        const { data } = await api.get<Produto[]>('/produtos/por-codigo/', { params: { codigo } });
+        if (data.length === 1) {
+          await adicionarProduto(data[0], quantidade);
+        } else if (data.length === 0) {
+          toast.error(`Produto não encontrado: ${codigo}`);
+        } else {
+          setResultados(data);
           setSelectedIndex(0);
-          setQtyMultiplier(1);
-          await queryClient.invalidateQueries({ queryKey: ['venda-aberta'] });
+          setQtyMultiplier(quantidade);
+          toast.warning('Mais de um produto com este código. Escolha na lista.');
         }
       } catch {
-          toast.error('Erro ao adicionar item.');
-      } finally {
-        setIsAdding(false);
-        setProductAddingId(null);
+        toast.error(`Erro ao buscar o código ${codigo}.`);
       }
-    }, [isAdding, venda, sessao, adicionarItemMutation, criarVendaMutation, qtyMultiplier, queryClient]);
+    });
+  }, [limparBusca, enfileirar, adicionarProduto]);
 
-  const handleBusca = useCallback(async (q: string) => {
+  const handleBusca = useCallback((q: string) => {
     setBusca(q);
+    const { termo, quantidade } = parseEntradaPdv(q);
+    setQtyMultiplier(quantidade);
 
-    // Suporte ao padrão QTY*SEARCH (ex: 3*COPO)
-    let searchTerm = q;
-    let multiplier = 1;
+    clearTimeout(buscaTimerRef.current);
+    const seq = ++buscaSeqRef.current;
 
-    if (q.includes('*')) {
-      const [qtyPart, ...rest] = q.split('*');
-      const parsedQty = parseFloat(qtyPart);
-      if (!isNaN(parsedQty) && parsedQty > 0) {
-        multiplier = parsedQty;
-        searchTerm = rest.join('*');
-      }
-    }
-
-    searchTerm = searchTerm.trim();
-    setQtyMultiplier(multiplier);
-
-    if (!searchTerm) {
+    if (!termo) {
       setResultados([]);
       setSelectedIndex(0);
       return;
     }
 
-    try {
-      const { data } = await api.get('/produtos/busca-pdv/', { params: { q: searchTerm } });
-      setResultados(data);
-      setSelectedIndex(0);
-
-      // AUTO-ADD: Se retornar exatamente 1 item e o termo de busca for numérico (padrão de código de barras)
-      const isBarcode = /^\d+$/.test(searchTerm);
-      const now = Date.now();
-
-      // Trava de 1 segundo para o MESMO código ou se já estiver processando
-      if (data.length === 1 && isBarcode) {
-        if (isProcessingScanRef.current) return;
-        if (lastScanRef.current.code === searchTerm && (now - lastScanRef.current.time) < 1000) {
-          return;
-        }
-
-        lastScanRef.current = { code: searchTerm, time: now };
-        isProcessingScanRef.current = true;
-
-        setBusca(''); // Limpa o campo imediatamente
-        handleAdicionarItem(data[0], multiplier);
-
-        // Libera o processamento após um pequeno delay
-        setTimeout(() => {
-          isProcessingScanRef.current = false;
-        }, 500);
+    // Espera o usuário/leitor parar de digitar; o leitor digita o código
+    // inteiro em poucos milissegundos e termina com Enter.
+    buscaTimerRef.current = setTimeout(async () => {
+      try {
+        const { data } = await api.get('/produtos/busca-pdv/', { params: { q: termo } });
+        if (seq !== buscaSeqRef.current) return;
+        setResultados(data);
+        setSelectedIndex(0);
+      } catch {
+        if (seq === buscaSeqRef.current) setResultados([]);
       }
-    } catch {
-      setResultados([]);
+    }, 250);
+  }, []);
+
+  const handleEnterBusca = (valor: string) => {
+    const { termo, quantidade, ehCodigo } = parseEntradaPdv(valor);
+    if (!termo) return;
+
+    if (ehCodigo) {
+      handleCodigo(termo, quantidade);
+      return;
     }
-  }, [handleAdicionarItem]);
+
+    const produto = resultados[selectedIndex];
+    if (produto) handleAdicionarItem(produto, quantidade);
+  };
 
   const handleAddPagamento = () => {
     const valor = parseFloat(valorPago || '0');
@@ -690,9 +735,7 @@ export default function PDV() {
                     setSelectedIndex(prev => Math.max(prev - 1, 0));
                   } else if (e.key === 'Enter') {
                     e.preventDefault();
-                    if (resultados.length > 0) {
-                      handleAdicionarItem(resultados[selectedIndex]);
-                    }
+                    handleEnterBusca(e.currentTarget.value);
                   }
                 }}
                 autoFocus
